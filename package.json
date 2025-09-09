@@ -87,6 +87,11 @@
           "type": "string",
           "default": "python3",
           "description": "Path to Python interpreter with genvm-linter installed"
+        },
+        "genvm.autoInstallDependencies": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically prompt to install required Python packages (genvm-linter and mypy)"
         }
       }
     },
@@ -115,6 +120,12 @@
         "command": "genvm.testLint",
         "title": "Test Linter",
         "category": "GenVM"
+      },
+      {
+        "command": "genvm.installDependencies",
+        "title": "Install Python Dependencies",
+        "category": "GenVM",
+        "description": "Install required Python packages (genvm-linter and mypy)"
       }
     ],
     "menus": {
