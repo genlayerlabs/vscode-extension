@@ -1,0 +1,96 @@
+{
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "name": "GenVM Python",
+    "scopeName": "source.python.genvm",
+    "patterns": [
+        {
+            "include": "source.python"
+        },
+        {
+            "include": "#genvm-magic-comment"
+        },
+        {
+            "include": "#genvm-decorators"
+        },
+        {
+            "include": "#genvm-types"
+        },
+        {
+            "include": "#genvm-imports"
+        }
+    ],
+    "repository": {
+        "genvm-magic-comment": {
+            "patterns": [
+                {
+                    "match": "^#\\s*\\{\\s*\"Depends\"\\s*:\\s*\"py-genlayer:[^\"]*\"\\s*\\}",
+                    "name": "comment.line.number-sign.genvm-magic",
+                    "captures": {
+                        "0": {
+                            "name": "keyword.control.import.genvm"
+                        }
+                    }
+                }
+            ]
+        },
+        "genvm-decorators": {
+            "patterns": [
+                {
+                    "match": "@gl\\.public\\.(view|write)(?:\\.payable)?",
+                    "name": "entity.name.function.decorator.genvm",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.other.genvm-decorator"
+                        }
+                    }
+                },
+                {
+                    "match": "@allow_storage",
+                    "name": "entity.name.function.decorator.genvm-storage"
+                }
+            ]
+        },
+        "genvm-types": {
+            "patterns": [
+                {
+                    "match": "\\b(u8|u16|u24|u32|u40|u48|u56|u64|u72|u80|u88|u96|u104|u112|u120|u128|u136|u144|u152|u160|u168|u176|u184|u192|u200|u208|u216|u224|u232|u240|u248|u256)\\b",
+                    "name": "support.type.genvm-uint"
+                },
+                {
+                    "match": "\\b(i8|i16|i24|i32|i40|i48|i56|i64|i72|i80|i88|i96|i104|i112|i120|i128|i136|i144|i152|i160|i168|i176|i184|i192|i200|i208|i216|i224|i232|i240|i248|i256)\\b",
+                    "name": "support.type.genvm-int"
+                },
+                {
+                    "match": "\\b(bigint)\\b",
+                    "name": "support.type.genvm-bigint"
+                },
+                {
+                    "match": "\\b(DynArray|TreeMap|Address)\\b",
+                    "name": "support.type.genvm-collection"
+                }
+            ]
+        },
+        "genvm-imports": {
+            "patterns": [
+                {
+                    "match": "\\b(from\\s+genlayer\\s+import\\s+\\*)",
+                    "name": "keyword.control.import.genvm",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.control.import.genvm-stdlib"
+                        }
+                    }
+                },
+                {
+                    "match": "\\b(gl)\\.",
+                    "name": "support.module.genvm",
+                    "captures": {
+                        "1": {
+                            "name": "variable.other.genvm-namespace"
+                        }
+                    }
+                }
+            ]
+        }
+    }
+}

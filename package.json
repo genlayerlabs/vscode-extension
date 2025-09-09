@@ -1,0 +1,160 @@
+{
+  "name": "genvm-linter",
+  "displayName": "GenVM Linter",
+  "description": "VS Code extension for linting GenLayer GenVM smart contracts",
+  "version": "0.1.0",
+  "publisher": "genlayerlabs",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/genlayerlabs/genvm-linter.git"
+  },
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters",
+    "Other"
+  ],
+  "keywords": [
+    "genvm",
+    "genlayer",
+    "blockchain",
+    "smart contracts",
+    "python",
+    "linter"
+  ],
+  "activationEvents": [
+    "onLanguage:python",
+    "onLanguage:genvm-python"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "genvm-python",
+        "aliases": ["GenVM Python", "genvm-python"],
+        "extensions": [".py"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "genvm-python",
+        "scopeName": "source.python.genvm",
+        "path": "./syntaxes/genvm-python.tmGrammar.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "python",
+        "path": "./snippets/genvm-snippets.json"
+      }
+    ],
+    "configuration": {
+      "title": "GenVM Linter",
+      "properties": {
+        "genvm.linting.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable GenVM linting"
+        },
+        "genvm.linting.severity": {
+          "type": "string",
+          "enum": ["error", "warning", "info"],
+          "default": "warning",
+          "description": "Minimum severity level to show"
+        },
+        "genvm.linting.showSuggestions": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show suggestions in diagnostics"
+        },
+        "genvm.linting.excludeRules": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Rules to exclude from linting",
+          "examples": [
+            ["genvm-magic-comment"],
+            ["genvm-types", "genvm-decorators"]
+          ]
+        },
+        "genvm.python.interpreterPath": {
+          "type": "string",
+          "default": "python3",
+          "description": "Path to Python interpreter with genvm-linter installed"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "genvm.lintCurrentFile",
+        "title": "Lint Current File",
+        "category": "GenVM"
+      },
+      {
+        "command": "genvm.lintWorkspace",
+        "title": "Lint Workspace",
+        "category": "GenVM"
+      },
+      {
+        "command": "genvm.showOutputChannel",
+        "title": "Show GenVM Output",
+        "category": "GenVM"
+      },
+      {
+        "command": "genvm.debug",
+        "title": "Debug Current File",
+        "category": "GenVM"
+      },
+      {
+        "command": "genvm.testLint",
+        "title": "Test Linter",
+        "category": "GenVM"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "genvm.lintCurrentFile",
+          "when": "resourceExtname == .py",
+          "group": "genvm@1"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "genvm.lintCurrentFile",
+          "when": "resourceExtname == .py",
+          "group": "genvm@1"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "@types/node": "18.x",
+    "@typescript-eslint/eslint-plugin": "^5.45.0",
+    "@typescript-eslint/parser": "^5.45.0",
+    "eslint": "^8.28.0",
+    "typescript": "^4.9.4",
+    "@vscode/test-electron": "^2.2.0",
+    "vsce": "^2.15.0"
+  },
+  "dependencies": {
+    "child_process": "^1.0.2"
+  }
+}

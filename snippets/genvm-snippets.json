@@ -1,0 +1,114 @@
+{
+    "GenVM Contract Template": {
+        "prefix": "genvm-contract",
+        "body": [
+            "# { \"Depends\": \"py-genlayer:test\" }",
+            "",
+            "from genlayer import *",
+            "",
+            "class ${1:ContractName}(gl.Contract):",
+            "    ${2:# Storage fields}",
+            "    ${3:balance}: u256",
+            "",
+            "    def __init__(self, ${4:initial_value}: int):",
+            "        ${5:self.balance = initial_value}",
+            "",
+            "    @gl.public.view",
+            "    def ${6:get_balance}(self) -> int:",
+            "        return ${7:self.balance}",
+            "",
+            "    @gl.public.write",
+            "    def ${8:set_balance}(self, ${9:amount}: int):",
+            "        ${10:self.balance = amount}",
+            "$0"
+        ],
+        "description": "Create a basic GenVM contract template"
+    },
+    "GenVM Magic Comment": {
+        "prefix": "genvm-magic",
+        "body": [
+            "# { \"Depends\": \"py-genlayer:test\" }"
+        ],
+        "description": "Insert GenVM magic comment"
+    },
+    "GenVM Import": {
+        "prefix": "genvm-import",
+        "body": [
+            "from genlayer import *"
+        ],
+        "description": "Import GenLayer standard library"
+    },
+    "GenVM Public View Method": {
+        "prefix": "genvm-view",
+        "body": [
+            "@gl.public.view",
+            "def ${1:method_name}(self${2:, param}: ${3:type}) -> ${4:int}:",
+            "    ${5:return self.value}",
+            "$0"
+        ],
+        "description": "Create a public view method"
+    },
+    "GenVM Public Write Method": {
+        "prefix": "genvm-write",
+        "body": [
+            "@gl.public.write",
+            "def ${1:method_name}(self${2:, param}: ${3:type}):",
+            "    ${4:self.value = param}",
+            "$0"
+        ],
+        "description": "Create a public write method"
+    },
+    "GenVM Dataclass": {
+        "prefix": "genvm-dataclass",
+        "body": [
+            "from dataclasses import dataclass",
+            "",
+            "@allow_storage",
+            "@dataclass",
+            "class ${1:DataClassName}:",
+            "    ${2:field_name}: ${3:str}",
+            "    ${4:balance}: u256",
+            "$0"
+        ],
+        "description": "Create a GenVM storage dataclass"
+    },
+    "GenVM Storage Types": {
+        "prefix": "genvm-types",
+        "body": [
+            "${1:field_name}: ${2|u8,u16,u32,u64,u128,u256,i8,i16,i32,i64,i128,i256,str,bool,Address,DynArray,TreeMap|}$0"
+        ],
+        "description": "Common GenVM storage types"
+    },
+    "GenVM TreeMap": {
+        "prefix": "genvm-treemap",
+        "body": [
+            "${1:field_name}: TreeMap[${2:Address}, ${3:u256}]$0"
+        ],
+        "description": "Create TreeMap storage field"
+    },
+    "GenVM DynArray": {
+        "prefix": "genvm-dynarray",
+        "body": [
+            "${1:field_name}: DynArray[${2:str}]$0"
+        ],
+        "description": "Create DynArray storage field"
+    },
+    "GenVM Constructor": {
+        "prefix": "genvm-init",
+        "body": [
+            "def __init__(self${1:, param}: ${2:int}):",
+            "    ${3:self.value = param}",
+            "$0"
+        ],
+        "description": "Create GenVM contract constructor"
+    },
+    "GenVM Error Handling": {
+        "prefix": "genvm-rollback",
+        "body": [
+            "if ${1:condition}:",
+            "    raise gl.Rollback(\"${2:Error message}\")",
+            "$0"
+        ],
+        "description": "Add GenVM error handling with rollback"
+    }
+}
