@@ -1,7 +1,7 @@
 {
   "name": "genvm-linter",
   "displayName": "GenVM Linter",
-  "description": "VS Code extension for linting GenLayer GenVM smart contracts",
+  "description": "VS Code extension for linting GenLayer GenVM intelligent contracts",
   "version": "0.1.0",
   "publisher": "genlayerlabs",
   "license": "MIT",
@@ -21,7 +21,7 @@
     "genvm",
     "genlayer",
     "blockchain",
-    "smart contracts",
+    "intelligent contracts",
     "python",
     "linter"
   ],
@@ -126,6 +126,12 @@
         "title": "Install Python Dependencies",
         "category": "GenVM",
         "description": "Install required Python packages (genvm-linter and mypy)"
+      },
+      {
+        "command": "genvm.createContract",
+        "title": "Create New Contract",
+        "category": "GenVM",
+        "description": "Create a new GenVM contract from template"
       }
     ],
     "menus": {
@@ -141,6 +147,11 @@
           "command": "genvm.lintCurrentFile",
           "when": "resourceExtname == .py",
           "group": "genvm@1"
+        },
+        {
+          "command": "genvm.createContract",
+          "when": "explorerResourceIsFolder",
+          "group": "genvm@2"
         }
       ]
     }

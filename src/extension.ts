@@ -3,6 +3,10 @@ import { GenVMLinter } from './genvm-linter';
 import { GenVMDiagnosticsProvider } from './diagnostics-provider';
 import { GenVMCompletionProvider } from './autocomplete-provider';
 import { GenVMSignatureHelpProvider, GL_SIGNATURE_HELP_TRIGGER_CHARACTERS } from './signature-provider';
+import { GenVMCodeActionProvider } from './code-actions-provider';
+import { GenVMInlayHintsProvider } from './inlay-hints-provider';
+import { GenVMDefinitionProvider } from './definition-provider';
+import { GenVMHoverProvider } from './hover-provider';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
@@ -35,6 +39,33 @@ export async function activate(context: vscode.ExtensionContext) {
         [{ language: 'python' }, { language: 'genvm-python' }],
         new GenVMSignatureHelpProvider(),
         ...GL_SIGNATURE_HELP_TRIGGER_CHARACTERS
+    );
+    
+    // Register Code Actions Provider (Quick Fixes)
+    const codeActionProvider = vscode.languages.registerCodeActionsProvider(
+        [{ language: 'python' }, { language: 'genvm-python' }],
+        new GenVMCodeActionProvider(),
+        {
+            providedCodeActionKinds: GenVMCodeActionProvider.providedCodeActionKinds
+        }
+    );
+    
+    // Register Inlay Hints Provider
+    const inlayHintsProvider = vscode.languages.registerInlayHintsProvider(
+        [{ language: 'python' }, { language: 'genvm-python' }],
+        new GenVMInlayHintsProvider()
+    );
+    
+    // Register Definition Provider (Go to Definition)
+    const definitionProvider = vscode.languages.registerDefinitionProvider(
+        [{ language: 'python' }, { language: 'genvm-python' }],
+        new GenVMDefinitionProvider()
+    );
+    
+    // Register Hover Provider
+    const hoverProvider = vscode.languages.registerHoverProvider(
+        [{ language: 'python' }, { language: 'genvm-python' }],
+        new GenVMHoverProvider()
     );
     
     // Register commands
@@ -96,6 +127,10 @@ export async function activate(context: vscode.ExtensionContext) {
     const installDependenciesCommand = vscode.commands.registerCommand('genvm.installDependencies', async () => {
         await installPackages(outputChannel);
     });
+    
+    const createContractCommand = vscode.commands.registerCommand('genvm.createContract', async (uri?: vscode.Uri) => {
+        await createNewContract(uri, outputChannel);
+    });
 
     // Register event listeners
     const onDidSaveDocument = vscode.workspace.onDidSaveTextDocument((document) => {
@@ -145,6 +180,7 @@ export async function activate(context: vscode.ExtensionContext) {
         debugCommand,
         testLintCommand,
         installDependenciesCommand,
+        createContractCommand,
         onDidSaveDocument,
         onDidOpenDocument,
         onDidChangeActiveEditor,
@@ -152,6 +188,10 @@ export async function activate(context: vscode.ExtensionContext) {
         onDidChangeConfiguration,
         completionProvider,
         signatureProvider,
+        codeActionProvider,
+        inlayHintsProvider,
+        definitionProvider,
+        hoverProvider,
         diagnosticsProvider,
         outputChannel
     );
@@ -258,6 +298,109 @@ async function checkAndInstallDependencies(outputChannel: vscode.OutputChannel):
         }
     } catch (error) {
         outputChannel.appendLine(`Error checking dependencies: ${error}`);
+    }
+}
+
+async function createNewContract(uri: vscode.Uri | undefined, outputChannel: vscode.OutputChannel): Promise<void> {
+    try {
+        // Determine target directory
+        let targetDir: vscode.Uri;
+        if (uri && (await vscode.workspace.fs.stat(uri)).type === vscode.FileType.Directory) {
+            targetDir = uri;
+        } else if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+            targetDir = vscode.workspace.workspaceFolders[0].uri;
+        } else {
+            vscode.window.showErrorMessage('No workspace folder open. Please open a folder first.');
+            return;
+        }
+        
+        // Prompt for contract name
+        const contractName = await vscode.window.showInputBox({
+            prompt: 'Enter the contract name',
+            placeHolder: 'MyContract',
+            validateInput: (value) => {
+                if (!value) {
+                    return 'Contract name is required';
+                }
+                if (!/^[A-Z][a-zA-Z0-9]*$/.test(value)) {
+                    return 'Contract name must start with uppercase letter and contain only letters and numbers';
+                }
+                return null;
+            }
+        });
+        
+        if (!contractName) {
+            return; // User cancelled
+        }
+        
+        // Generate filename (snake_case)
+        const fileName = contractName
+            .replace(/([A-Z])/g, '_$1')
+            .toLowerCase()
+            .substring(1) + '.py';
+        
+        // Create contract content
+        const contractContent = `# { "Depends": "py-genlayer:test" }
+
+from genlayer import *
+
+class ${contractName}(gl.Contract):
+    """${contractName} intelligent contract."""
+    
+    def __init__(self):
+        """Initialize the contract."""
+        pass
+    
+    @gl.public.view
+    def get_value(self) -> int:
+        """Get a value from the contract."""
+        return 0
+    
+    @gl.public.write
+    def set_value(self, value: int):
+        """Set a value in the contract."""
+        pass
+`;
+        
+        // Create file path
+        const filePath = vscode.Uri.joinPath(targetDir, fileName);
+        
+        // Check if file already exists
+        try {
+            await vscode.workspace.fs.stat(filePath);
+            const overwrite = await vscode.window.showWarningMessage(
+                `File ${fileName} already exists. Overwrite?`,
+                'Yes',
+                'No'
+            );
+            if (overwrite !== 'Yes') {
+                return;
+            }
+        } catch (error) {
+            // File doesn't exist, which is what we want
+        }
+        
+        // Write the file
+        const encoder = new TextEncoder();
+        await vscode.workspace.fs.writeFile(filePath, encoder.encode(contractContent));
+        
+        // Open the file in editor
+        const document = await vscode.workspace.openTextDocument(filePath);
+        const editor = await vscode.window.showTextDocument(document);
+        
+        // Place cursor at the end of __init__ method
+        const initLine = document.getText().split('\n').findIndex(line => line.includes('def __init__'));
+        if (initLine !== -1) {
+            const position = new vscode.Position(initLine + 2, 8); // After 'pass' in __init__
+            editor.selection = new vscode.Selection(position, position);
+        }
+        
+        outputChannel.appendLine(`Created new GenVM contract: ${fileName}`);
+        vscode.window.showInformationMessage(`Created new GenVM contract: ${fileName}`);
+        
+    } catch (error) {
+        outputChannel.appendLine(`Error creating contract: ${error}`);
+        vscode.window.showErrorMessage(`Failed to create contract: ${error}`);
     }
 }
 
