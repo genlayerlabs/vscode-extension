@@ -17,14 +17,21 @@ export class GenVMDiagnosticsProvider implements vscode.Disposable {
     }
 
     public async lintDocument(document: vscode.TextDocument): Promise<void> {
+        this.outputChannel.appendLine(`GenVM: Starting lint for ${document.fileName}`);
         try {
             const results = await this.linter.lintDocument(document);
+            this.outputChannel.appendLine(`GenVM: Linter returned ${results.length} results`);
             const diagnostics = this.convertResultsToDiagnostics(results);
             
             this.diagnosticsCollection.set(document.uri, diagnostics);
             
             if (results.length > 0) {
                 this.outputChannel.appendLine(`GenVM: Found ${results.length} issues in ${document.fileName}`);
+                results.forEach(r => {
+                    this.outputChannel.appendLine(`  - Line ${r.line}: ${r.message}`);
+                });
+            } else {
+                this.outputChannel.appendLine(`GenVM: No issues found in ${document.fileName}`);
             }
         } catch (error) {
             this.outputChannel.appendLine(`GenVM Diagnostics Error: ${error}`);

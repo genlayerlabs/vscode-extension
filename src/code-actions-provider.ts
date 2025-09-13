@@ -38,6 +38,16 @@ export class GenVMCodeActionProvider implements vscode.CodeActionProvider {
             if (diagnostic.message.includes('should not return a value')) {
                 actions.push(this.createRemoveReturnFix(document, diagnostic));
             }
+            
+            // Fix missing __init__ method
+            if (diagnostic.message.includes('missing __init__ method')) {
+                actions.push(this.createAddInitMethodFix(document, diagnostic));
+            }
+            
+            // Fix sized types in return type
+            if (diagnostic.message.includes('should not be used in return types')) {
+                actions.push(this.createFixReturnTypeFix(document, diagnostic));
+            }
         }
         
         // Add refactoring actions if text is selected
@@ -147,6 +157,108 @@ export class GenVMCodeActionProvider implements vscode.CodeActionProvider {
         );
         
         fix.diagnostics = [diagnostic];
+        return fix;
+    }
+    
+    private createAddInitMethodFix(document: vscode.TextDocument, diagnostic: vscode.Diagnostic): vscode.CodeAction {
+        const fix = new vscode.CodeAction(
+            'Add __init__ method',
+            vscode.CodeActionKind.QuickFix
+        );
+        
+        fix.edit = new vscode.WorkspaceEdit();
+        
+        // Find the class definition line
+        const classLine = diagnostic.range.start.line;
+        const classText = document.lineAt(classLine).text;
+        const indent = '    '; // Standard Python indentation
+        
+        // Find the line after the class definition to insert __init__
+        let insertLine = classLine + 1;
+        let foundDocstring = false;
+        
+        // Skip past class docstring if present
+        for (let i = classLine + 1; i < document.lineCount; i++) {
+            const line = document.lineAt(i).text;
+            const trimmed = line.trim();
+            
+            // Check for docstring
+            if (!foundDocstring && (trimmed.startsWith('"""') || trimmed.startsWith("'''"))) {
+                foundDocstring = true;
+                // Find end of docstring
+                const quote = trimmed.substring(0, 3);
+                if (trimmed.endsWith(quote) && trimmed.length > 6) {
+                    // Single line docstring
+                    insertLine = i + 1;
+                    break;
+                } else {
+                    // Multi-line docstring
+                    for (let j = i + 1; j < document.lineCount; j++) {
+                        if (document.lineAt(j).text.includes(quote)) {
+                            insertLine = j + 1;
+                            break;
+                        }
+                    }
+                    break;
+                }
+            } else if (trimmed && !trimmed.startsWith('#')) {
+                // Found non-comment, non-docstring content
+                insertLine = i;
+                break;
+            }
+        }
+        
+        // Create the __init__ method
+        const initMethod = `${indent}def __init__(self):\n${indent}${indent}pass\n`;
+        
+        // Insert the __init__ method
+        fix.edit.insert(
+            document.uri,
+            new vscode.Position(insertLine, 0),
+            `\n${initMethod}`
+        );
+        
+        fix.diagnostics = [diagnostic];
+        fix.isPreferred = true;
+        
+        return fix;
+    }
+    
+    private createFixReturnTypeFix(document: vscode.TextDocument, diagnostic: vscode.Diagnostic): vscode.CodeAction {
+        const fix = new vscode.CodeAction(
+            'Replace sized type with int',
+            vscode.CodeActionKind.QuickFix
+        );
+        
+        fix.edit = new vscode.WorkspaceEdit();
+        
+        // Get the line with the return type
+        const line = diagnostic.range.start.line;
+        const lineText = document.lineAt(line).text;
+        
+        // Find the return type annotation
+        const returnTypeMatch = lineText.match(/\)\s*->\s*([ui]\d+)/);
+        if (returnTypeMatch) {
+            const sizedType = returnTypeMatch[1];
+            const startIndex = lineText.indexOf('->') + 2;
+            const endIndex = startIndex + sizedType.length;
+            
+            // Replace the sized type with 'int'
+            fix.edit.replace(
+                document.uri,
+                new vscode.Range(
+                    line,
+                    lineText.indexOf('->') + 3, // Skip past '-> '
+                    line,
+                    lineText.indexOf('->') + 3 + sizedType.length
+                ),
+                'int'
+            );
+        }
+        
+        fix.diagnostics = [diagnostic];
+        fix.isPreferred = true;
+        
         return fix;
     }
     

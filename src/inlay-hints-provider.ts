@@ -149,7 +149,7 @@ export class GenVMInlayHintsProvider implements vscode.InlayHintsProvider {
         text: string
     ): void {
         // Match class attributes (storage fields)
-        const attrPattern = /^\s+(\w+)\s*:\s*([\w\[\]]+)/;
+        const attrPattern = /^\s+(\w+)\s*:\s*([\w\[\], ]+)/;
         const match = attrPattern.exec(text);
         
         if (match) {

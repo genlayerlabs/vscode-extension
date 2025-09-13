@@ -106,15 +106,19 @@ export class GenVMLinter {
             });
 
             childProcess.on('close', (code) => {
+                this.outputChannel.appendLine(`GenVM Linter process exited with code: ${code}`);
                 if (stderr) {
                     this.outputChannel.appendLine(`GenVM Linter stderr: ${stderr}`);
                 }
 
                 try {
                     if (stdout.trim()) {
+                        this.outputChannel.appendLine(`GenVM Linter stdout length: ${stdout.length}`);
                         const output: GenVMLintOutput = JSON.parse(stdout);
+                        this.outputChannel.appendLine(`GenVM Linter parsed ${output.results?.length || 0} results`);
                         resolve(output.results || []);
                     } else {
+                        this.outputChannel.appendLine(`GenVM Linter: No output received`);
                         resolve([]);
                     }
                 } catch (parseError) {
