@@ -1,25 +1,62 @@
 # GenVM Linter VS Code Extension - Installation Guide
 
-## Quick Start
+## Prerequisites
 
-### 1. Install Prerequisites
+- **Python 3.8+** - Required for the linter backend
+- **VS Code 1.74.0+** - Minimum VS Code version
+- **Node.js 16+** - Only needed for development
 
-**Python 3.8+ with GenVM Linter:**
+## Installation Options
+
+### Option 1: Install from VS Code Marketplace (Recommended)
+
+1. Open VS Code
+2. Go to Extensions (Ctrl+Shift+X / Cmd+Shift+X)
+3. Search for "GenVM Linter"
+4. Click Install
+
+### Option 2: Install from VSIX Package
+
+1. Download the latest `.vsix` file from [Releases](https://github.com/genlayerlabs/genvm-linter/releases)
+2. In VS Code, press Ctrl+Shift+P (Cmd+Shift+P on Mac)
+3. Type "Extensions: Install from VSIX"
+4. Select the downloaded `.vsix` file
+
+### Option 3: Install via Command Line
+
 ```bash
-# Install the GenVM linter Python package
-pip install ../  # Install from the parent directory
-# OR if published:
-# pip install genvm-linter
+# Install the extension
+code --install-extension genvm-linter-0.2.0.vsix
 ```
 
-**Node.js and TypeScript:**
-```bash
-# Install Node.js (https://nodejs.org)
-# Then install dependencies
-npm install
+## Python Package Installation
 
-# Install VS Code Extension CLI tools (optional)
-npm install -g vsce
+The VS Code extension requires the Python linter package:
+
+### From PyPI (Recommended)
+
+```bash
+pip install genvm-linter
+```
+
+### From Source
+
+```bash
+git clone https://github.com/genlayerlabs/genvm-linter.git
+cd genvm-linter
+pip install -e .
+```
+
+## Development Setup
+
+For contributing to the extension:
+
+### 1. Clone and Install Dependencies
+
+```bash
+git clone https://github.com/genlayerlabs/genvm-linter.git
+cd genvm-linter/vscode-extension
+npm install
 ```
 
 ### 2. Build the Extension
@@ -28,31 +65,25 @@ npm install -g vsce
 # Compile TypeScript
 npm run compile
 
-# Package the extension (optional)
-npm run package
+# Watch mode for development
+npm run watch
 ```
 
-### 3. Install in VS Code
+### 3. Test in Development
 
-**Option A: Development Mode**
-1. Open this directory in VS Code
+1. Open the `vscode-extension` folder in VS Code
 2. Press `F5` to launch Extension Development Host
 3. Test the extension in the new VS Code window
 
-**Option B: Install VSIX Package**
+### 4. Package the Extension
+
 ```bash
+# Install packaging tool
+npm install -g vsce
+
 # Create VSIX package
 vsce package
-
-# Install in VS Code
-code --install-extension genvm-linter-0.1.0.vsix
 ```
-
-**Option C: Manual Installation**
-1. Copy the entire `vscode-extension` folder to your VS Code extensions directory:
-   - **Windows:** `%USERPROFILE%\.vscode\extensions\`
-   - **macOS:** `~/.vscode/extensions/`
-   - **Linux:** `~/.vscode/extensions/`
 
 ## Configuration
 

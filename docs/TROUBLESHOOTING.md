@@ -1,128 +1,180 @@
 # GenVM Linter Extension - Troubleshooting
 
-## Quick Fix for Your Issue
+## Common Issues and Solutions
 
-The VS Code extension is not highlighting the `u64` return type error. Here's how to fix it:
+### Extension Not Working
 
-### Step 1: Install the Python Package
+#### Problem: No linting errors appear in VS Code
+
+**Solution 1: Verify Python Package Installation**
 ```bash
-cd /Users/canelito/projetos/genlayer/genvm-linter
-pip3 install -e .
+# Check if genvm-linter is installed
+pip show genvm-linter
+
+# If not installed, install it:
+pip install genvm-linter
+# OR from source:
+pip install -e /path/to/genvm-linter
 ```
 
-### Step 2: Test CLI Manually
+**Solution 2: Configure Python Interpreter**
+1. Open VS Code Settings (Ctrl+, / Cmd+,)
+2. Search for "genvm.python.interpreterPath"
+3. Set it to your Python executable path:
+   ```bash
+   # Find your Python path:
+   which python3
+   ```
+4. Common paths:
+   - macOS: `/usr/local/bin/python3` or `/opt/homebrew/bin/python3`
+   - Linux: `/usr/bin/python3`
+   - Windows: `C:\Python39\python.exe`
+
+**Solution 3: Check Extension Activation**
+1. Open Command Palette (Ctrl+Shift+P / Cmd+Shift+P)
+2. Run "GenVM: Show GenVM Output"
+3. Check for error messages in the output panel
+
+### Linting Not Triggering
+
+#### Problem: Files are not being validated
+
+**Solution 1: Verify File Has Magic Comment**
+```python
+# { "Depends": "py-genlayer:test" }  # Required on first line
+from genlayer import *
+```
+
+**Solution 2: Enable Linting in Settings**
+```json
+{
+  "genvm.linting.enabled": true,
+  "genvm.linting.severity": "info"
+}
+```
+
+**Solution 3: Manually Trigger Linting**
+- Save the file (Ctrl+S / Cmd+S)
+- Or run command: "GenVM: Lint Current File"
+
+### Python Path Issues
+
+#### Problem: "Python interpreter not found" error
+
+**Solution 1: Set Absolute Path**
+```json
+{
+  "genvm.python.interpreterPath": "/usr/local/bin/python3"
+}
+```
+
+**Solution 2: Test CLI Manually**
 ```bash
-# Test with your contract
+# Test if the linter works from command line
 python3 -m genvm_linter.cli your_contract.py
 ```
 
-You should see:
-```
-error: Method 'analyze_banner' returns 'u64' type. Use 'int' for return types [genvm-types]
-```
-
-### Step 3: Configure VS Code Extension
-
-1. **Install the Extension:**
-   ```bash
-   code --install-extension genvm-linter-0.1.0.vsix
-   ```
-
-2. **Configure Python Path:**
-   - Open VS Code Settings (Ctrl+,)
-   - Search for "genvm"
-   - Set **GenVM: Python: Interpreter Path** to your Python path:
-     ```bash
-     # Find your Python path:
-     which python3
-     ```
-   - Example: `/usr/local/bin/python3` or `/opt/homebrew/bin/python3`
-
-3. **Enable All Severity Levels:**
-   - Set **GenVM: Linting: Severity** to `info`
-
-### Step 4: Test the Extension
-
-1. **Open Extension Development:**
-   - Open the `vscode-extension` folder in VS Code
-   - Press `F5` to launch Extension Development Host
-
-2. **Test Your Contract:**
-   - In the new VS Code window, open your contract file
-   - Save the file (Ctrl+S) to trigger linting
-   - Run command: "GenVM: Test Linter" from Command Palette
-
-3. **Check for Issues:**
-   - Look for red squiggles under `-> u64:`
-   - Check Problems panel (View → Problems)
-   - Check Output channel (View → Output → GenVM Linter)
-
-### Step 5: Debug Commands
-
-Use these commands from Command Palette (Ctrl+Shift+P):
-
-- **"GenVM: Debug Current File"** - Shows file detection info
-- **"GenVM: Test Linter"** - Manually runs linter and shows results
-- **"GenVM: Show GenVM Output"** - Shows extension logs
-
-## Common Issues
-
-### Issue 1: "No module named 'genvm_linter'"
+**Solution 3: Use Python from Virtual Environment**
 ```bash
-# Solution: Install the package
-cd /Users/canelito/projetos/genlayer/genvm-linter
-pip3 install -e .
+# Activate your virtual environment
+source venv/bin/activate
+
+# Get Python path
+which python
+
+# Use this path in VS Code settings
 ```
 
-### Issue 2: "command not found: python3"
+### Specific Error Types Not Showing
+
+#### Problem: Some validation errors don't appear
+
+**Solution 1: Check Severity Level**
+```json
+{
+  "genvm.linting.severity": "info"  // Shows all: error, warning, info
+}
+```
+
+**Solution 2: Check Excluded Rules**
+```json
+{
+  "genvm.linting.excludeRules": []  // Empty array excludes nothing
+}
+```
+
+### Performance Issues
+
+#### Problem: Extension is slow or unresponsive
+
+**Solution 1: Check File Size**
+- Very large files may take longer to validate
+- Consider splitting large contracts
+
+**Solution 2: Disable Auto-Save**
+- Constant auto-saves can trigger too many validations
+- Use manual save (Ctrl+S) instead
+
+## Debug Commands
+
+Use these commands from Command Palette (Ctrl+Shift+P / Cmd+Shift+P):
+- **"GenVM: Debug Current File"** - Shows detailed debug output
+- **"GenVM: Test Linter"** - Tests if linter is working
+- **"GenVM: Show GenVM Output"** - Shows extension output channel
+- **"GenVM: Lint Current File"** - Manually trigger linting
+- **"GenVM: Install Dependencies"** - Install required Python packages
+
+## Manual Testing
+
+Test the linter directly from command line:
+
 ```bash
-# Solution: Set correct Python path in VS Code settings
-# Find Python: which python3
-# Then set in VS Code: "genvm.python.interpreterPath": "/your/python/path"
-```
-
-### Issue 3: Extension Not Activating
-- Check that file starts with `# { "Depends": "py-genlayer:test" }`
-- Check file extension is `.py`
-- Check VS Code Extensions panel shows "GenVM Linter" as active
-
-### Issue 4: No Diagnostics Showing
-1. Save the file to trigger linting
-2. Check Output → GenVM Linter for errors
-3. Verify Python path in settings
-4. Run "GenVM: Test Linter" command manually
-
-## Expected Results
-
-With your test contract, you should see:
-
-**Error:** Line 13, Column 0
-```
-Method 'analyze_banner' returns 'u64' type. Use 'int' for return types [genvm-types]
-💡 Suggestion: Change return type from 'u64' to 'int'
-```
-
-## Manual Verification
-
-Test the linter directly:
-```bash
-# Create test file
-cat > test.py << 'EOF'
+# Create a test contract file
+cat > test_contract.py << 'EOF'
 # { "Depends": "py-genlayer:test" }
-
 from genlayer import *
 
 class TestContract(gl.Contract):
-    def __init__(self):
-        pass
+    balance: int  # Should be u256
 
-    @gl.public.write
-    def analyze_banner(self) -> u64:
-        return 42
+    def __init__(self):
+        self.balance = 0
+
+    @gl.public.view
+    def get_balance(self) -> u256:  # Should return int
+        return self.balance
 EOF
 
-# Run linter
-python3 -m genvm_linter.cli test.py
+# Run the linter
+python3 -m genvm_linter.cli test_contract.py
 ```
 
-If this shows the error but VS Code doesn't, the issue is with the extension configuration.
+Expected output:
+```
+error: Storage field 'balance' uses 'int' type. Use sized integers [genvm-types]
+error: Method 'get_balance' returns 'u256' type. Use 'int' for return types [genvm-types]
+```
+
+## Getting Help
+
+### Before Reporting an Issue
+
+1. Check the [CHANGELOG](../../CHANGELOG.md) for recent changes
+2. Search [existing issues](https://github.com/genlayerlabs/genvm-linter/issues)
+3. Try the solutions in this guide
+
+### Reporting Issues
+
+Include in your report:
+- VS Code version (`code --version`)
+- Python version (`python3 --version`)
+- GenVM linter version (`pip show genvm-linter`)
+- Operating system and version
+- Sample code that reproduces the issue
+- Error messages from Output panel
+
+### Community Resources
+
+- [GitHub Issues](https://github.com/genlayerlabs/genvm-linter/issues)
+- [GenLayer Documentation](https://docs.genlayer.com)
+- [GenLayer Discord](https://discord.gg/genlayer)
