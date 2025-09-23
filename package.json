@@ -132,6 +132,12 @@
         "title": "Create New Contract",
         "category": "GenVM",
         "description": "Create a new GenVM contract from template"
+      },
+      {
+        "command": "genvm.deployContract",
+        "title": "Deploy Contract",
+        "category": "GenVM",
+        "description": "Deploy the current GenVM contract to a network"
       }
     ],
     "menus": {
@@ -140,6 +146,11 @@
           "command": "genvm.lintCurrentFile",
           "when": "resourceExtname == .py",
           "group": "genvm@1"
+        },
+        {
+          "command": "genvm.deployContract",
+          "when": "resourceExtname == .py",
+          "group": "genvm@2"
         }
       ],
       "explorer/context": [

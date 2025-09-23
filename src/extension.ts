@@ -132,6 +132,19 @@ export async function activate(context: vscode.ExtensionContext) {
         await createNewContract(uri, outputChannel);
     });
 
+    const deployContractCommand = vscode.commands.registerCommand('genvm.deployContract', async () => {
+        const editor = vscode.window.activeTextEditor;
+        if (editor && (editor.document.languageId === 'python' || editor.document.languageId === 'genvm-python')) {
+            if (isGenVMFile(editor.document)) {
+                await deployContract(editor.document, outputChannel);
+            } else {
+                vscode.window.showWarningMessage('GenVM Linter: Current file is not a GenVM contract');
+            }
+        } else {
+            vscode.window.showWarningMessage('GenVM Linter: Please open a GenVM contract file');
+        }
+    });
+
     // Register event listeners
     const onDidSaveDocument = vscode.workspace.onDidSaveTextDocument((document) => {
         if (document.languageId === 'python' || document.languageId === 'genvm-python') {
@@ -181,6 +194,7 @@ export async function activate(context: vscode.ExtensionContext) {
         testLintCommand,
         installDependenciesCommand,
         createContractCommand,
+        deployContractCommand,
         onDidSaveDocument,
         onDidOpenDocument,
         onDidChangeActiveEditor,
@@ -298,6 +312,117 @@ async function checkAndInstallDependencies(outputChannel: vscode.OutputChannel):
         }
     } catch (error) {
         outputChannel.appendLine(`Error checking dependencies: ${error}`);
+    }
+}
+
+async function deployContract(document: vscode.TextDocument, outputChannel: vscode.OutputChannel): Promise<void> {
+    try {
+        outputChannel.appendLine('=== Starting Contract Deployment ===');
+        outputChannel.show();
+
+        // Network selection options
+        const networks = [
+            { label: '🌐 StudioNet', value: 'studionet', description: 'GenLayer Studio Network' },
+            { label: '🏠 LocalNet', value: 'localnet', description: 'Local Development Network' },
+            { label: '🧪 TestNet', value: 'testnet', description: 'Test Network' },
+            { label: '⚙️ Custom RPC...', value: 'custom', description: 'Custom RPC Endpoint' }
+        ];
+
+        const selected = await vscode.window.showQuickPick(networks, {
+            placeHolder: 'Select deployment network',
+            title: 'Deploy GenVM Contract'
+        });
+
+        if (!selected) {
+            outputChannel.appendLine('Deployment cancelled by user');
+            return;
+        }
+
+        const contractPath = document.fileName;
+        outputChannel.appendLine(`Contract: ${contractPath}`);
+        outputChannel.appendLine(`Network: ${selected.label}`);
+
+        const pythonPath = vscode.workspace.getConfiguration('genvm').get<string>('python.interpreterPath', 'python3');
+        let deployCommand: string;
+
+        if (selected.value === 'custom') {
+            // Prompt for custom RPC URL
+            const rpcUrl = await vscode.window.showInputBox({
+                prompt: 'Enter custom RPC URL',
+                placeHolder: 'http://localhost:8545',
+                validateInput: (value) => {
+                    if (!value) {
+                        return 'RPC URL is required';
+                    }
+                    try {
+                        new URL(value);
+                        return null;
+                    } catch {
+                        return 'Invalid URL format';
+                    }
+                }
+            });
+
+            if (!rpcUrl) {
+                outputChannel.appendLine('Deployment cancelled - no RPC URL provided');
+                return;
+            }
+
+            outputChannel.appendLine(`Custom RPC: ${rpcUrl}`);
+            deployCommand = `genlayer deploy --contract "${contractPath}" --rpc ${rpcUrl}`;
+        } else {
+            // For standard networks, set network first then deploy
+            outputChannel.appendLine(`Setting network to ${selected.value}...`);
+            try {
+                const { stdout: networkOut, stderr: networkErr } = await execAsync(`genlayer network ${selected.value}`);
+                if (networkOut) outputChannel.appendLine(networkOut);
+                if (networkErr) outputChannel.appendLine(`Network stderr: ${networkErr}`);
+            } catch (error: any) {
+                outputChannel.appendLine(`Error setting network: ${error.message}`);
+                vscode.window.showErrorMessage(`Failed to set network: ${error.message}`);
+                return;
+            }
+
+            deployCommand = `genlayer deploy --contract "${contractPath}"`;
+        }
+
+        // Execute deployment
+        outputChannel.appendLine(`\nExecuting: ${deployCommand}`);
+        vscode.window.showInformationMessage('Deploying contract... Check output for details.');
+
+        try {
+            const { stdout, stderr } = await execAsync(deployCommand, {
+                cwd: vscode.workspace.workspaceFolders?.[0].uri.fsPath
+            });
+
+            if (stdout) {
+                outputChannel.appendLine('\n=== Deployment Output ===');
+                outputChannel.appendLine(stdout);
+
+                // Check for success indicators
+                if (stdout.includes('deployed') || stdout.includes('success') || stdout.includes('0x')) {
+                    vscode.window.showInformationMessage('Contract deployed successfully! Check output for details.');
+                }
+            }
+
+            if (stderr && !stderr.includes('warning')) {
+                outputChannel.appendLine('\n=== Deployment Errors ===');
+                outputChannel.appendLine(stderr);
+            }
+        } catch (error: any) {
+            outputChannel.appendLine(`\n=== Deployment Failed ===`);
+            outputChannel.appendLine(error.message);
+            if (error.stdout) outputChannel.appendLine(error.stdout);
+            if (error.stderr) outputChannel.appendLine(error.stderr);
+
+            vscode.window.showErrorMessage(`Deployment failed: ${error.message}`);
+        }
+
+        outputChannel.appendLine('\n=== Deployment Process Complete ===');
+
+    } catch (error: any) {
+        outputChannel.appendLine(`Unexpected error: ${error.message}`);
+        vscode.window.showErrorMessage(`Deployment error: ${error.message}`);
     }
 }
 
