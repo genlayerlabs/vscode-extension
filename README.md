@@ -49,9 +49,17 @@ The extension automatically detects GenVM contract files by looking for:
 - Python files with "contract", "genvm", or "genlayer" in the filename
 
 ### Manual Commands
-- **Ctrl+Shift+P** → "GenVM: Lint Current File"
-- **Ctrl+Shift+P** → "GenVM: Lint Workspace"
-- **Ctrl+Shift+P** → "GenVM: Show GenVM Output"
+
+Access these commands via the Command Palette (**Ctrl+Shift+P** or **Cmd+Shift+P** on Mac):
+
+- **GenVM: Lint Current File** - Lint the active Python file for GenVM compliance
+- **GenVM: Lint Workspace** - Lint all GenVM contracts in the workspace
+- **GenVM: Show GenVM Output** - Show the GenLayer output channel with diagnostic logs
+- **GenVM: Debug** - Display debug information about the extension and linter
+- **GenVM: Test Lint** - Test the linter with a sample contract to verify setup
+- **GenVM: Install Dependencies** - Install required Python packages (genvm-linter, mypy)
+- **GenVM: Create Contract** - Create a new intelligent contract from a template
+- **GenVM: Deploy Contract** - Deploy the current contract to a GenLayer network
 
 ### Code Snippets
 Type these prefixes and press Tab:
