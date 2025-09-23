@@ -719,10 +719,8 @@ async function executeInteractiveCommand(
                 const addressMatch = output.match(/0x[a-fA-F0-9]{40}/);
                 const contractAddress = addressMatch ? addressMatch[0] : undefined;
 
-                const success = code === 0 ||
-                               output.toLowerCase().includes('success') ||
-                               output.toLowerCase().includes('deployed') ||
-                               !!contractAddress;
+                // Deployment is only successful if we have a contract address
+                const success = !!contractAddress;
 
                 resolve({
                     success,
@@ -889,8 +887,7 @@ async function deployContract(document: vscode.TextDocument, outputChannel: vsco
                 } else if (selection === 'View Output') {
                     outputChannel.show();
                 }
-            } else if (result.success) {
-                vscode.window.showInformationMessage('Contract deployed successfully! Check output for details.');
+            // Note: removed else if (result.success) case since success now requires contractAddress
             } else {
                 outputChannel.appendLine('\n❌ Deployment failed');
                 vscode.window.showErrorMessage('Deployment failed. Check output for details.');
