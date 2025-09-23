@@ -133,15 +133,35 @@ export async function activate(context: vscode.ExtensionContext) {
     });
 
     const deployContractCommand = vscode.commands.registerCommand('genvm.deployContract', async () => {
-        const editor = vscode.window.activeTextEditor;
-        if (editor && (editor.document.languageId === 'python' || editor.document.languageId === 'genvm-python')) {
-            if (isGenVMFile(editor.document)) {
-                await deployContract(editor.document, outputChannel);
-            } else {
-                vscode.window.showWarningMessage('GenVM Linter: Current file is not a GenVM contract');
+        try {
+            outputChannel.appendLine('Deploy command triggered');
+            const editor = vscode.window.activeTextEditor;
+
+            if (!editor) {
+                outputChannel.appendLine('No active editor');
+                vscode.window.showWarningMessage('GenVM Linter: Please open a file first');
+                return;
             }
-        } else {
-            vscode.window.showWarningMessage('GenVM Linter: Please open a GenVM contract file');
+
+            outputChannel.appendLine(`Active file: ${editor.document.fileName}`);
+            outputChannel.appendLine(`Language ID: ${editor.document.languageId}`);
+
+            if (editor.document.languageId !== 'python' && editor.document.languageId !== 'genvm-python') {
+                vscode.window.showWarningMessage('GenVM Linter: Please open a Python file');
+                return;
+            }
+
+            if (!isGenVMFile(editor.document)) {
+                outputChannel.appendLine('File is not a GenVM contract');
+                vscode.window.showWarningMessage('GenVM Linter: Current file is not a GenVM contract');
+                return;
+            }
+
+            outputChannel.appendLine('Calling deployContract function...');
+            await deployContract(editor.document, outputChannel);
+        } catch (error: any) {
+            outputChannel.appendLine(`Error in deploy command: ${error.message}`);
+            vscode.window.showErrorMessage(`Deploy error: ${error.message}`);
         }
     });
 
@@ -318,6 +338,7 @@ async function checkAndInstallDependencies(outputChannel: vscode.OutputChannel):
 async function deployContract(document: vscode.TextDocument, outputChannel: vscode.OutputChannel): Promise<void> {
     try {
         outputChannel.appendLine('=== Starting Contract Deployment ===');
+        outputChannel.appendLine(`File: ${document.fileName}`);
         outputChannel.show();
 
         // Network selection options
@@ -328,13 +349,16 @@ async function deployContract(document: vscode.TextDocument, outputChannel: vsco
             { label: '⚙️ Custom RPC...', value: 'custom', description: 'Custom RPC Endpoint' }
         ];
 
+        outputChannel.appendLine('Showing network selection dialog...');
+
         const selected = await vscode.window.showQuickPick(networks, {
             placeHolder: 'Select deployment network',
-            title: 'Deploy GenVM Contract'
+            title: 'Deploy GenVM Contract',
+            ignoreFocusOut: true  // Don't close when focus is lost
         });
 
         if (!selected) {
-            outputChannel.appendLine('Deployment cancelled by user');
+            outputChannel.appendLine('Deployment cancelled - no network selected');
             return;
         }
 
@@ -350,6 +374,7 @@ async function deployContract(document: vscode.TextDocument, outputChannel: vsco
             const rpcUrl = await vscode.window.showInputBox({
                 prompt: 'Enter custom RPC URL',
                 placeHolder: 'http://localhost:8545',
+                ignoreFocusOut: true,  // Don't close when focus is lost
                 validateInput: (value) => {
                     if (!value) {
                         return 'RPC URL is required';
