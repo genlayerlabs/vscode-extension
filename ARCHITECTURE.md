@@ -255,14 +255,14 @@ const results: LintResult[] = output.results;
 
 ## Available Commands
 
-1. **genvm.lintCurrentFile** - Lint the active Python file
-2. **genvm.lintWorkspace** - Lint all GenVM contracts in workspace
-3. **genvm.showOutputChannel** - Show the GenLayer output channel
-4. **genvm.debug** - Show debug information
-5. **genvm.testLint** - Test the linter with a sample contract
-6. **genvm.installDependencies** - Install required Python packages
-7. **genvm.createContract** - Create new intelligent contract from template
-8. **genvm.deployContract** - Deploy contract to GenLayer network
+1. **genlayer.lintCurrentFile** - Lint the active Python file
+2. **genlayer.lintWorkspace** - Lint all GenLayer contracts in workspace
+3. **genlayer.showOutputChannel** - Show the GenLayer output channel
+4. **genlayer.debug** - Show debug information
+5. **genlayer.testLint** - Test the linter with a sample contract
+6. **genlayer.installDependencies** - Install required Python packages
+7. **genlayer.createContract** - Create new intelligent contract from template
+8. **genlayer.deployContract** - Deploy contract to GenLayer network
 
 ## Configuration
 
@@ -270,12 +270,12 @@ const results: LintResult[] = output.results;
 
 ```json
 {
-    "genvm.linting.enabled": true,
-    "genvm.linting.severity": "warning",
-    "genvm.linting.showSuggestions": true,
-    "genvm.linting.excludeRules": [],
-    "genvm.python.interpreterPath": "python3",
-    "genvm.autoInstallDependencies": true
+    "genlayer.linting.enabled": true,
+    "genlayer.linting.severity": "warning",
+    "genlayer.linting.showSuggestions": true,
+    "genlayer.linting.excludeRules": [],
+    "genlayer.python.interpreterPath": "python3",
+    "genlayer.autoInstallDependencies": true
 }
 ```
 
@@ -285,8 +285,8 @@ The extension respects `.vscode/settings.json` for project-specific configuratio
 
 ```json
 {
-    "genvm.linting.excludeRules": ["genvm-magic-comment"],
-    "genvm.python.interpreterPath": "${workspaceFolder}/venv/bin/python"
+    "genlayer.linting.excludeRules": ["genvm-magic-comment"],
+    "genlayer.python.interpreterPath": "${workspaceFolder}/venv/bin/python"
 }
 ```
 

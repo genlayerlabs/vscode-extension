@@ -53,7 +53,7 @@ export async function checkAndInstallDependencies(outputChannel: vscode.OutputCh
         if (response === 'Install') {
             await installPackages(outputChannel, missingPackages);
         } else if (response === 'Don\'t Ask Again') {
-            await vscode.workspace.getConfiguration('genvm').update('autoInstallDependencies', false, true);
+            await vscode.workspace.getConfiguration('genlayer').update('autoInstallDependencies', false, true);
         }
     } catch (error) {
         outputChannel.appendLine(`Error checking dependencies: ${error}`);

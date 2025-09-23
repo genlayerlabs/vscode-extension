@@ -52,14 +52,14 @@ The extension automatically detects GenVM contract files by looking for:
 
 Access these commands via the Command Palette (**Ctrl+Shift+P** or **Cmd+Shift+P** on Mac):
 
-- **GenVM: Lint Current File** - Lint the active Python file for GenVM compliance
-- **GenVM: Lint Workspace** - Lint all GenVM contracts in the workspace
-- **GenVM: Show GenVM Output** - Show the GenLayer output channel with diagnostic logs
-- **GenVM: Debug** - Display debug information about the extension and linter
-- **GenVM: Test Lint** - Test the linter with a sample contract to verify setup
-- **GenVM: Install Dependencies** - Install required Python packages (genvm-linter, mypy)
-- **GenVM: Create Contract** - Create a new intelligent contract from a template
-- **GenVM: Deploy Contract** - Deploy the current contract to a GenLayer network
+- **GenLayer: Lint Current File** - Lint the active Python file for GenLayer compliance
+- **GenLayer: Lint Workspace** - Lint all GenLayer contracts in the workspace
+- **GenLayer: Show GenLayer Output** - Show the GenLayer output channel with diagnostic logs
+- **GenLayer: Debug** - Display debug information about the extension and linter
+- **GenLayer: Test Lint** - Test the linter with a sample contract to verify setup
+- **GenLayer: Install Dependencies** - Install required Python packages (genvm-linter, mypy)
+- **GenLayer: Create Contract** - Create a new intelligent contract from a template
+- **GenLayer: Deploy Contract** - Deploy the current contract to a GenLayer network
 
 ### Code Snippets
 Type these prefixes and press Tab:
@@ -79,11 +79,11 @@ Configure the extension through VS Code settings:
 
 ```json
 {
-  "genvm.linting.enabled": true,
-  "genvm.linting.severity": "warning",
-  "genvm.linting.showSuggestions": true,
-  "genvm.linting.excludeRules": [],
-  "genvm.python.interpreterPath": "python3"
+  "genlayer.linting.enabled": true,
+  "genlayer.linting.severity": "warning",
+  "genlayer.linting.showSuggestions": true,
+  "genlayer.linting.excludeRules": [],
+  "genlayer.python.interpreterPath": "python3"
 }
 ```
 
@@ -91,20 +91,20 @@ Configure the extension through VS Code settings:
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `genvm.linting.enabled` | boolean | `true` | Enable/disable GenVM linting |
-| `genvm.linting.severity` | string | `"warning"` | Minimum severity to show (`error`, `warning`, `info`) |
-| `genvm.linting.showSuggestions` | boolean | `true` | Show fix suggestions in diagnostics |
-| `genvm.linting.excludeRules` | array | `[]` | Rules to exclude from linting |
-| `genvm.python.interpreterPath` | string | `"python3"` | Path to Python interpreter |
+| `genlayer.linting.enabled` | boolean | `true` | Enable/disable GenLayer linting |
+| `genlayer.linting.severity` | string | `"warning"` | Minimum severity to show (`error`, `warning`, `info`) |
+| `genlayer.linting.showSuggestions` | boolean | `true` | Show fix suggestions in diagnostics |
+| `genlayer.linting.excludeRules` | array | `[]` | Rules to exclude from linting |
+| `genlayer.python.interpreterPath` | string | `"python3"` | Path to Python interpreter |
 
 ### Example Workspace Settings
 
 ```json
 {
-  "genvm.linting.enabled": true,
-  "genvm.linting.severity": "error",
-  "genvm.linting.excludeRules": ["genvm-magic-comment"],
-  "genvm.python.interpreterPath": "/usr/local/bin/python3.11"
+  "genlayer.linting.enabled": true,
+  "genlayer.linting.severity": "error",
+  "genlayer.linting.excludeRules": ["genvm-magic-comment"],
+  "genlayer.python.interpreterPath": "/usr/local/bin/python3.11"
 }
 ```
 
@@ -171,7 +171,7 @@ class TokenContract(gl.Contract):
 4. Check Output → GenVM Linter for error messages
 
 ### Python Path Issues
-1. Set absolute path in `genvm.python.interpreterPath`
+1. Set absolute path in `genlayer.python.interpreterPath`
 2. Use the Python interpreter where genvm-linter is installed
 3. Test manually: `python3 -m genvm_linter.cli --version`
 

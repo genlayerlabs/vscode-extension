@@ -31,7 +31,7 @@ export function isGenVMFile(document: vscode.TextDocument): boolean {
  * Get the Python interpreter path from configuration
  */
 export function getPythonPath(): string {
-    return vscode.workspace.getConfiguration('genvm').get<string>('python.interpreterPath', 'python3');
+    return vscode.workspace.getConfiguration('genlayer').get<string>('python.interpreterPath', 'python3');
 }
 
 /**

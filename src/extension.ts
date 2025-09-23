@@ -20,7 +20,7 @@ export async function activate(context: vscode.ExtensionContext) {
     const outputChannel = vscode.window.createOutputChannel('GenLayer');
     
     // Check and install dependencies if needed
-    const autoInstall = vscode.workspace.getConfiguration('genvm').get<boolean>('autoInstallDependencies', true);
+    const autoInstall = vscode.workspace.getConfiguration('genlayer').get<boolean>('autoInstallDependencies', true);
     if (autoInstall) {
         await checkAndInstallDependencies(outputChannel);
     }
@@ -69,7 +69,7 @@ export async function activate(context: vscode.ExtensionContext) {
     );
     
     // Register commands
-    const lintCurrentFileCommand = vscode.commands.registerCommand('genvm.lintCurrentFile', () => {
+    const lintCurrentFileCommand = vscode.commands.registerCommand('genlayer.lintCurrentFile', () => {
         const editor = vscode.window.activeTextEditor;
         if (editor && (editor.document.languageId === 'python' || editor.document.languageId === 'genvm-python')) {
             diagnosticsProvider.lintDocument(editor.document);
@@ -78,16 +78,16 @@ export async function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    const lintWorkspaceCommand = vscode.commands.registerCommand('genvm.lintWorkspace', () => {
+    const lintWorkspaceCommand = vscode.commands.registerCommand('genlayer.lintWorkspace', () => {
         diagnosticsProvider.lintWorkspace();
     });
 
-    const showOutputCommand = vscode.commands.registerCommand('genvm.showOutputChannel', () => {
+    const showOutputCommand = vscode.commands.registerCommand('genlayer.showOutputChannel', () => {
         outputChannel.show();
     });
 
     // Debug commands
-    const debugCommand = vscode.commands.registerCommand('genvm.debug', () => {
+    const debugCommand = vscode.commands.registerCommand('genlayer.debug', () => {
         const editor = vscode.window.activeTextEditor;
         if (editor) {
             outputChannel.appendLine(`=== GenVM Debug Info ===`);
@@ -106,7 +106,7 @@ export async function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    const testLintCommand = vscode.commands.registerCommand('genvm.testLint', async () => {
+    const testLintCommand = vscode.commands.registerCommand('genlayer.testLint', async () => {
         const editor = vscode.window.activeTextEditor;
         if (!editor) {
             outputChannel.appendLine('No active editor');
@@ -124,15 +124,15 @@ export async function activate(context: vscode.ExtensionContext) {
         }
     });
     
-    const installDependenciesCommand = vscode.commands.registerCommand('genvm.installDependencies', async () => {
+    const installDependenciesCommand = vscode.commands.registerCommand('genlayer.installDependencies', async () => {
         await installPackages(outputChannel);
     });
     
-    const createContractCommand = vscode.commands.registerCommand('genvm.createContract', async (uri?: vscode.Uri) => {
+    const createContractCommand = vscode.commands.registerCommand('genlayer.createContract', async (uri?: vscode.Uri) => {
         await createNewContract(uri, outputChannel);
     });
 
-    const deployContractCommand = vscode.commands.registerCommand('genvm.deployContract', async () => {
+    const deployContractCommand = vscode.commands.registerCommand('genlayer.deployContract', async () => {
         try {
             outputChannel.appendLine('Deploy command triggered');
             const editor = vscode.window.activeTextEditor;
@@ -194,7 +194,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
     // Register configuration change listener
     const onDidChangeConfiguration = vscode.workspace.onDidChangeConfiguration((event) => {
-        if (event.affectsConfiguration('genvm')) {
+        if (event.affectsConfiguration('genlayer')) {
             // Reload configuration and re-lint open documents
             diagnosticsProvider.reloadConfiguration();
             vscode.workspace.textDocuments.forEach(document => {
@@ -284,7 +284,7 @@ function isGenVMFile(document: vscode.TextDocument): boolean {
 }
 
 async function checkAndInstallDependencies(outputChannel: vscode.OutputChannel): Promise<void> {
-    const pythonPath = vscode.workspace.getConfiguration('genvm').get<string>('python.interpreterPath', 'python3');
+    const pythonPath = vscode.workspace.getConfiguration('genlayer').get<string>('python.interpreterPath', 'python3');
     
     try {
         // Check if packages are installed
@@ -328,7 +328,7 @@ async function checkAndInstallDependencies(outputChannel: vscode.OutputChannel):
         if (response === 'Install') {
             await installPackages(outputChannel, missingPackages);
         } else if (response === 'Don\'t Ask Again') {
-            await vscode.workspace.getConfiguration('genvm').update('autoInstallDependencies', false, true);
+            await vscode.workspace.getConfiguration('genlayer').update('autoInstallDependencies', false, true);
         }
     } catch (error) {
         outputChannel.appendLine(`Error checking dependencies: ${error}`);
@@ -781,7 +781,7 @@ async function deployContract(document: vscode.TextDocument, outputChannel: vsco
         outputChannel.appendLine(`Contract: ${contractPath}`);
         outputChannel.appendLine(`Network: ${selected.label}`);
 
-        const pythonPath = vscode.workspace.getConfiguration('genvm').get<string>('python.interpreterPath', 'python3');
+        const pythonPath = vscode.workspace.getConfiguration('genlayer').get<string>('python.interpreterPath', 'python3');
         let deployCommand: string;
 
         if (selected.value === 'custom') {
@@ -1011,7 +1011,7 @@ class ${contractName}(gl.Contract):
 }
 
 async function installPackages(outputChannel: vscode.OutputChannel, packages?: string[]): Promise<void> {
-    const pythonPath = vscode.workspace.getConfiguration('genvm').get<string>('python.interpreterPath', 'python3');
+    const pythonPath = vscode.workspace.getConfiguration('genlayer').get<string>('python.interpreterPath', 'python3');
     const packagesToInstall = packages || ['genvm-linter', 'mypy'];
     
     await vscode.window.withProgress({

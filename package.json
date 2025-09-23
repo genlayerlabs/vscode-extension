@@ -54,25 +54,25 @@
       }
     ],
     "configuration": {
-      "title": "GenVM Linter",
+      "title": "GenLayer",
       "properties": {
-        "genvm.linting.enabled": {
+        "genlayer.linting.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Enable GenVM linting"
+          "description": "Enable GenLayer linting"
         },
-        "genvm.linting.severity": {
+        "genlayer.linting.severity": {
           "type": "string",
           "enum": ["error", "warning", "info"],
           "default": "warning",
           "description": "Minimum severity level to show"
         },
-        "genvm.linting.showSuggestions": {
+        "genlayer.linting.showSuggestions": {
           "type": "boolean",
           "default": true,
           "description": "Show suggestions in diagnostics"
         },
-        "genvm.linting.excludeRules": {
+        "genlayer.linting.excludeRules": {
           "type": "array",
           "items": {
             "type": "string"
@@ -84,12 +84,12 @@
             ["genvm-types", "genvm-decorators"]
           ]
         },
-        "genvm.python.interpreterPath": {
+        "genlayer.python.interpreterPath": {
           "type": "string",
           "default": "python3",
           "description": "Path to Python interpreter with genvm-linter installed"
         },
-        "genvm.autoInstallDependencies": {
+        "genlayer.autoInstallDependencies": {
           "type": "boolean",
           "default": true,
           "description": "Automatically prompt to install required Python packages (genvm-linter and mypy)"
@@ -98,70 +98,70 @@
     },
     "commands": [
       {
-        "command": "genvm.lintCurrentFile",
+        "command": "genlayer.lintCurrentFile",
         "title": "Lint Current File",
-        "category": "GenVM"
+        "category": "GenLayer"
       },
       {
-        "command": "genvm.lintWorkspace",
+        "command": "genlayer.lintWorkspace",
         "title": "Lint Workspace",
-        "category": "GenVM"
+        "category": "GenLayer"
       },
       {
-        "command": "genvm.showOutputChannel",
-        "title": "Show GenVM Output",
-        "category": "GenVM"
+        "command": "genlayer.showOutputChannel",
+        "title": "Show GenLayer Output",
+        "category": "GenLayer"
       },
       {
-        "command": "genvm.debug",
+        "command": "genlayer.debug",
         "title": "Debug Current File",
-        "category": "GenVM"
+        "category": "GenLayer"
       },
       {
-        "command": "genvm.testLint",
+        "command": "genlayer.testLint",
         "title": "Test Linter",
-        "category": "GenVM"
+        "category": "GenLayer"
       },
       {
-        "command": "genvm.installDependencies",
+        "command": "genlayer.installDependencies",
         "title": "Install Python Dependencies",
-        "category": "GenVM",
+        "category": "GenLayer",
         "description": "Install required Python packages (genvm-linter and mypy)"
       },
       {
-        "command": "genvm.createContract",
+        "command": "genlayer.createContract",
         "title": "Create New Contract",
-        "category": "GenVM",
-        "description": "Create a new GenVM contract from template"
+        "category": "GenLayer",
+        "description": "Create a new GenLayer contract from template"
       },
       {
-        "command": "genvm.deployContract",
+        "command": "genlayer.deployContract",
         "title": "Deploy Contract",
-        "category": "GenVM",
-        "description": "Deploy the current GenVM contract to a network"
+        "category": "GenLayer",
+        "description": "Deploy the current GenLayer contract to a network"
       }
     ],
     "menus": {
       "editor/context": [
         {
-          "command": "genvm.lintCurrentFile",
+          "command": "genlayer.lintCurrentFile",
           "when": "resourceExtname == .py",
           "group": "genvm@1"
         },
         {
-          "command": "genvm.deployContract",
+          "command": "genlayer.deployContract",
           "when": "resourceExtname == .py",
           "group": "genvm@2"
         }
       ],
       "explorer/context": [
         {
-          "command": "genvm.lintCurrentFile",
+          "command": "genlayer.lintCurrentFile",
           "when": "resourceExtname == .py",
           "group": "genvm@1"
         },
         {
-          "command": "genvm.createContract",
+          "command": "genlayer.createContract",
           "when": "explorerResourceIsFolder",
           "group": "genvm@2"
         }

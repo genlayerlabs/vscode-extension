@@ -32,11 +32,11 @@ export class GenVMLinter {
 
     constructor(outputChannel: vscode.OutputChannel) {
         this.outputChannel = outputChannel;
-        this.config = vscode.workspace.getConfiguration('genvm');
+        this.config = vscode.workspace.getConfiguration('genlayer');
     }
 
     public reloadConfiguration(): void {
-        this.config = vscode.workspace.getConfiguration('genvm');
+        this.config = vscode.workspace.getConfiguration('genlayer');
     }
 
     public async lintDocument(document: vscode.TextDocument): Promise<GenVMLintResult[]> {
