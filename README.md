@@ -1,6 +1,6 @@
-# GenVM Linter - VS Code Extension
+# GenLayer VS Code Extension
 
-A comprehensive VS Code extension for linting and developing GenLayer GenVM intelligent contracts in Python.
+Official VS Code extension for developing GenLayer intelligent contracts with Python, featuring real-time linting, code intelligence, and deployment tools.
 
 ## Features
 

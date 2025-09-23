@@ -14,10 +14,10 @@ const execAsync = promisify(exec);
 let diagnosticsProvider: GenVMDiagnosticsProvider;
 
 export async function activate(context: vscode.ExtensionContext) {
-    console.log('GenVM Linter extension is now active');
+    console.log('GenLayer VS Code Extension is now active');
 
     // Create output channel for GenVM
-    const outputChannel = vscode.window.createOutputChannel('GenVM Linter');
+    const outputChannel = vscode.window.createOutputChannel('GenLayer');
     
     // Check and install dependencies if needed
     const autoInstall = vscode.workspace.getConfiguration('genvm').get<boolean>('autoInstallDependencies', true);
@@ -74,7 +74,7 @@ export async function activate(context: vscode.ExtensionContext) {
         if (editor && (editor.document.languageId === 'python' || editor.document.languageId === 'genvm-python')) {
             diagnosticsProvider.lintDocument(editor.document);
         } else {
-            vscode.window.showWarningMessage('GenVM Linter: Please open a Python file');
+            vscode.window.showWarningMessage('GenLayer: Please open a Python file');
         }
     });
 
@@ -147,7 +147,7 @@ export async function activate(context: vscode.ExtensionContext) {
             outputChannel.appendLine(`Language ID: ${editor.document.languageId}`);
 
             if (editor.document.languageId !== 'python' && editor.document.languageId !== 'genvm-python') {
-                vscode.window.showWarningMessage('GenVM Linter: Please open a Python file');
+                vscode.window.showWarningMessage('GenLayer: Please open a Python file');
                 return;
             }
 

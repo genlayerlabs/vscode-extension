@@ -1,4 +1,4 @@
-# GenVM Linter VS Code Extension - Installation Guide
+# GenLayer VS Code Extension - Installation Guide
 
 ## Prerequisites
 
@@ -12,7 +12,7 @@
 
 1. Open VS Code
 2. Go to Extensions (Ctrl+Shift+X / Cmd+Shift+X)
-3. Search for "GenVM Linter"
+3. Search for "GenLayer"
 4. Click Install
 
 ### Option 2: Install from VSIX Package

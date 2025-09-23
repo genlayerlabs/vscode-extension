@@ -54,7 +54,7 @@ export class GenVMLinter {
             
             return results;
         } catch (error) {
-            this.outputChannel.appendLine(`GenVM Linter Error: ${error}`);
+            this.outputChannel.appendLine(`GenLayer Error: ${error}`);
             return [];
         }
     }
@@ -67,7 +67,7 @@ export class GenVMLinter {
         try {
             return await this.runLinter(filePath);
         } catch (error) {
-            this.outputChannel.appendLine(`GenVM Linter Error: ${error}`);
+            this.outputChannel.appendLine(`GenLayer Error: ${error}`);
             return [];
         }
     }
@@ -106,30 +106,30 @@ export class GenVMLinter {
             });
 
             childProcess.on('close', (code) => {
-                this.outputChannel.appendLine(`GenVM Linter process exited with code: ${code}`);
+                this.outputChannel.appendLine(`GenLayer process exited with code: ${code}`);
                 if (stderr) {
-                    this.outputChannel.appendLine(`GenVM Linter stderr: ${stderr}`);
+                    this.outputChannel.appendLine(`GenLayer stderr: ${stderr}`);
                 }
 
                 try {
                     if (stdout.trim()) {
-                        this.outputChannel.appendLine(`GenVM Linter stdout length: ${stdout.length}`);
+                        this.outputChannel.appendLine(`GenLayer stdout length: ${stdout.length}`);
                         const output: GenVMLintOutput = JSON.parse(stdout);
-                        this.outputChannel.appendLine(`GenVM Linter parsed ${output.results?.length || 0} results`);
+                        this.outputChannel.appendLine(`GenLayer parsed ${output.results?.length || 0} results`);
                         resolve(output.results || []);
                     } else {
-                        this.outputChannel.appendLine(`GenVM Linter: No output received`);
+                        this.outputChannel.appendLine(`GenLayer: No output received`);
                         resolve([]);
                     }
                 } catch (parseError) {
-                    this.outputChannel.appendLine(`Failed to parse GenVM linter output: ${parseError}`);
+                    this.outputChannel.appendLine(`Failed to parse GenLayer linter output: ${parseError}`);
                     this.outputChannel.appendLine(`Raw output: ${stdout}`);
                     resolve([]);
                 }
             });
 
             childProcess.on('error', (error) => {
-                this.outputChannel.appendLine(`Failed to start GenVM linter: ${error.message}`);
+                this.outputChannel.appendLine(`Failed to start GenLayer linter: ${error.message}`);
                 reject(error);
             });
         });

@@ -1,7 +1,7 @@
 {
   "name": "genvm-linter",
-  "displayName": "GenVM Linter",
-  "description": "VS Code extension for linting GenLayer GenVM intelligent contracts",
+  "displayName": "GenLayer VS Code Extension",
+  "description": "Official VS Code extension for developing GenLayer intelligent contracts with Python",
   "version": "0.1.0",
   "publisher": "genlayerlabs",
   "license": "MIT",

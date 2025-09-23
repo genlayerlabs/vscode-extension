@@ -1,4 +1,4 @@
-# GenVM Linter - Testing Guide for Advanced Features
+# GenLayer VS Code Extension - Testing Guide for Advanced Features
 
 ## Installation
 

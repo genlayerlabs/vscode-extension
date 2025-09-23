@@ -1,4 +1,4 @@
-# GenVM Linter Extension - Troubleshooting
+# GenLayer VS Code Extension - Troubleshooting
 
 ## Common Issues and Solutions
 
