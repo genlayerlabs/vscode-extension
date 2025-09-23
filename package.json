@@ -4,6 +4,7 @@
   "description": "Official VS Code extension for developing GenLayer intelligent contracts with Python",
   "version": "0.1.0",
   "publisher": "genlayerlabs",
+  "icon": "images/icon.png",
   "license": "MIT",
   "repository": {
     "type": "git",
