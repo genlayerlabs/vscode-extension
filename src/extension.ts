@@ -397,11 +397,21 @@ async function deployContract(document: vscode.TextDocument, outputChannel: vsco
             deployCommand = `genlayer deploy --contract "${contractPath}" --rpc ${rpcUrl}`;
         } else {
             // For standard networks, set network first then deploy
-            outputChannel.appendLine(`Setting network to ${selected.value}...`);
+            outputChannel.appendLine(`\nSetting network to ${selected.label}...`);
             try {
                 const { stdout: networkOut, stderr: networkErr } = await execAsync(`genlayer network ${selected.value}`);
-                if (networkOut) outputChannel.appendLine(networkOut);
-                if (networkErr) outputChannel.appendLine(`Network stderr: ${networkErr}`);
+
+                // Display network command output (both stdout and stderr may contain success messages)
+                const networkOutput = networkOut || networkErr || '';
+                if (networkOutput) {
+                    outputChannel.appendLine(networkOutput.trim());
+                }
+
+                // Check if it was actually an error
+                if (networkOutput.toLowerCase().includes('error') || networkOutput.toLowerCase().includes('failed')) {
+                    vscode.window.showErrorMessage(`Failed to set network: ${networkOutput}`);
+                    return;
+                }
             } catch (error: any) {
                 outputChannel.appendLine(`Error setting network: ${error.message}`);
                 vscode.window.showErrorMessage(`Failed to set network: ${error.message}`);
@@ -411,37 +421,73 @@ async function deployContract(document: vscode.TextDocument, outputChannel: vsco
             deployCommand = `genlayer deploy --contract "${contractPath}"`;
         }
 
-        // Execute deployment
+        // Execute deployment with progress indication
         outputChannel.appendLine(`\nExecuting: ${deployCommand}`);
-        vscode.window.showInformationMessage('Deploying contract... Check output for details.');
 
-        try {
-            const { stdout, stderr } = await execAsync(deployCommand, {
-                cwd: vscode.workspace.workspaceFolders?.[0].uri.fsPath
-            });
+        await vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: "Deploying GenVM Contract",
+            cancellable: false
+        }, async (progress) => {
+            progress.report({ increment: 0, message: "Initiating deployment..." });
 
-            if (stdout) {
-                outputChannel.appendLine('\n=== Deployment Output ===');
-                outputChannel.appendLine(stdout);
+            try {
+                progress.report({ increment: 30, message: "Sending contract to network..." });
 
-                // Check for success indicators
-                if (stdout.includes('deployed') || stdout.includes('success') || stdout.includes('0x')) {
-                    vscode.window.showInformationMessage('Contract deployed successfully! Check output for details.');
+                const { stdout, stderr } = await execAsync(deployCommand, {
+                    cwd: vscode.workspace.workspaceFolders?.[0].uri.fsPath,
+                    timeout: 60000 // 60 second timeout for deployment
+                });
+
+                progress.report({ increment: 70, message: "Processing deployment response..." });
+
+                // Combine stdout and stderr as both may contain useful information
+                const fullOutput = (stdout || '') + (stderr || '');
+
+                if (fullOutput) {
+                    outputChannel.appendLine('\n=== Deployment Output ===');
+                    outputChannel.appendLine(fullOutput);
+
+                    // Extract contract address (looking for 0x followed by 40 hex characters)
+                    const addressMatch = fullOutput.match(/0x[a-fA-F0-9]{40}/);
+
+                    if (addressMatch) {
+                        const contractAddress = addressMatch[0];
+                        outputChannel.appendLine(`\n✅ Contract Address: ${contractAddress}`);
+
+                        // Show success message with copy option
+                        const selection = await vscode.window.showInformationMessage(
+                            `Contract deployed successfully!\nAddress: ${contractAddress}`,
+                            'Copy Address',
+                            'View Output'
+                        );
+
+                        if (selection === 'Copy Address') {
+                            await vscode.env.clipboard.writeText(contractAddress);
+                            vscode.window.showInformationMessage('Contract address copied to clipboard!');
+                        } else if (selection === 'View Output') {
+                            outputChannel.show();
+                        }
+                    } else if (fullOutput.toLowerCase().includes('success') || fullOutput.toLowerCase().includes('deployed')) {
+                        // Deployment succeeded but couldn't extract address
+                        vscode.window.showInformationMessage('Contract deployed successfully! Check output for details.');
+                    } else {
+                        // Unclear if deployment succeeded
+                        vscode.window.showWarningMessage('Deployment completed. Check output for details.');
+                    }
                 }
-            }
 
-            if (stderr && !stderr.includes('warning')) {
-                outputChannel.appendLine('\n=== Deployment Errors ===');
-                outputChannel.appendLine(stderr);
-            }
-        } catch (error: any) {
-            outputChannel.appendLine(`\n=== Deployment Failed ===`);
-            outputChannel.appendLine(error.message);
-            if (error.stdout) outputChannel.appendLine(error.stdout);
-            if (error.stderr) outputChannel.appendLine(error.stderr);
+                progress.report({ increment: 100, message: "Deployment complete!" });
 
-            vscode.window.showErrorMessage(`Deployment failed: ${error.message}`);
-        }
+            } catch (error: any) {
+                outputChannel.appendLine(`\n=== Deployment Failed ===`);
+                outputChannel.appendLine(error.message);
+                if (error.stdout) outputChannel.appendLine(error.stdout);
+                if (error.stderr) outputChannel.appendLine(error.stderr);
+
+                vscode.window.showErrorMessage(`Deployment failed: ${error.message}`);
+            }
+        });
 
         outputChannel.appendLine('\n=== Deployment Process Complete ===');
 
