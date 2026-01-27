@@ -2,13 +2,13 @@
   "name": "genlayer",
   "displayName": "GenLayer",
   "description": "Official VS Code extension for developing GenLayer intelligent contracts with Python",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "genlayer-labs",
   "icon": "images/icon.png",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/genlayerlabs/genvm-linter.git"
+    "url": "https://github.com/genlayerlabs/vscode-extension.git"
   },
   "engines": {
     "vscode": "^1.74.0"
@@ -27,31 +27,10 @@
     "linter"
   ],
   "activationEvents": [
-    "onLanguage:python",
-    "onLanguage:genvm-python"
+    "onLanguage:python"
   ],
   "main": "./out/extension.js",
   "contributes": {
-    "languages": [
-      {
-        "id": "genvm-python",
-        "aliases": [
-          "GenVM Python",
-          "genvm-python"
-        ],
-        "extensions": [
-          ".py"
-        ],
-        "configuration": "./language-configuration.json"
-      }
-    ],
-    "grammars": [
-      {
-        "language": "genvm-python",
-        "scopeName": "source.python.genvm",
-        "path": "./syntaxes/genvm-python.tmGrammar.json"
-      }
-    ],
     "snippets": [
       {
         "language": "python",

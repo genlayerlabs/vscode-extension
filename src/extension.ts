@@ -71,7 +71,7 @@ export async function activate(context: vscode.ExtensionContext) {
     // Register commands
     const lintCurrentFileCommand = vscode.commands.registerCommand('genlayer.lintCurrentFile', () => {
         const editor = vscode.window.activeTextEditor;
-        if (editor && (editor.document.languageId === 'python' || editor.document.languageId === 'genvm-python')) {
+        if (editor && (editor.document.languageId === 'python' )) {
             diagnosticsProvider.lintDocument(editor.document);
         } else {
             vscode.window.showWarningMessage('GenLayer: Please open a Python file');
@@ -167,19 +167,19 @@ export async function activate(context: vscode.ExtensionContext) {
 
     // Register event listeners
     const onDidSaveDocument = vscode.workspace.onDidSaveTextDocument((document) => {
-        if (document.languageId === 'python' || document.languageId === 'genvm-python') {
+        if (document.languageId === 'python' ) {
             diagnosticsProvider.lintDocument(document);
         }
     });
 
     const onDidOpenDocument = vscode.workspace.onDidOpenTextDocument((document) => {
-        if ((document.languageId === 'python' || document.languageId === 'genvm-python') && isGenVMFile(document)) {
+        if ((document.languageId === 'python' ) && isGenVMFile(document)) {
             diagnosticsProvider.lintDocument(document);
         }
     });
 
     const onDidChangeActiveEditor = vscode.window.onDidChangeActiveTextEditor((editor) => {
-        if (editor && (editor.document.languageId === 'python' || editor.document.languageId === 'genvm-python') && isGenVMFile(editor.document)) {
+        if (editor && (editor.document.languageId === 'python' ) && isGenVMFile(editor.document)) {
             diagnosticsProvider.lintDocument(editor.document);
         }
     });
@@ -187,7 +187,7 @@ export async function activate(context: vscode.ExtensionContext) {
     // Lint when document content changes (real-time)
     const onDidChangeTextDocument = vscode.workspace.onDidChangeTextDocument((event) => {
         const document = event.document;
-        if (document.languageId === 'python' || document.languageId === 'genvm-python') {
+        if (document.languageId === 'python' ) {
             diagnosticsProvider.lintDocument(document);
         }
     });
@@ -232,7 +232,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
     // Lint currently open Python documents
     vscode.workspace.textDocuments.forEach(document => {
-        if ((document.languageId === 'python' || document.languageId === 'genvm-python') && isGenVMFile(document)) {
+        if ((document.languageId === 'python' ) && isGenVMFile(document)) {
             diagnosticsProvider.lintDocument(document);
         }
     });
