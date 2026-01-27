@@ -5,6 +5,10 @@ out/
 .vscode-test/
 *.log
 .DS_Store
-__pycache__/
+
+# Python
+**/__pycache__/
 *.py[cod]
 *$py.class
+.venv/
+*.egg-info/
