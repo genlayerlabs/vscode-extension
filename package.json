@@ -1,9 +1,9 @@
 {
-  "name": "genvm-linter",
-  "displayName": "GenLayer VS Code Extension",
+  "name": "genlayer",
+  "displayName": "GenLayer",
   "description": "Official VS Code extension for developing GenLayer intelligent contracts with Python",
   "version": "0.1.0",
-  "publisher": "genlayerlabs",
+  "publisher": "genlayer-labs",
   "icon": "images/icon.png",
   "license": "MIT",
   "repository": {
@@ -35,8 +35,13 @@
     "languages": [
       {
         "id": "genvm-python",
-        "aliases": ["GenVM Python", "genvm-python"],
-        "extensions": [".py"],
+        "aliases": [
+          "GenVM Python",
+          "genvm-python"
+        ],
+        "extensions": [
+          ".py"
+        ],
         "configuration": "./language-configuration.json"
       }
     ],
@@ -63,7 +68,11 @@
         },
         "genlayer.linting.severity": {
           "type": "string",
-          "enum": ["error", "warning", "info"],
+          "enum": [
+            "error",
+            "warning",
+            "info"
+          ],
           "default": "warning",
           "description": "Minimum severity level to show"
         },
@@ -80,8 +89,13 @@
           "default": [],
           "description": "Rules to exclude from linting",
           "examples": [
-            ["genvm-magic-comment"],
-            ["genvm-types", "genvm-decorators"]
+            [
+              "genvm-magic-comment"
+            ],
+            [
+              "genvm-types",
+              "genvm-decorators"
+            ]
           ]
         },
         "genlayer.python.interpreterPath": {
