@@ -18,11 +18,17 @@ export async function activate(context: vscode.ExtensionContext) {
 
     // Create output channel for GenVM
     const outputChannel = vscode.window.createOutputChannel('GenLayer');
-    
+
     // Check and install dependencies if needed
     const autoInstall = vscode.workspace.getConfiguration('genlayer').get<boolean>('autoInstallDependencies', true);
     if (autoInstall) {
         await checkAndInstallDependencies(outputChannel);
+    }
+
+    // Generate type stubs for Pylance intellisense
+    const autoGenerateStubs = vscode.workspace.getConfiguration('genlayer').get<boolean>('autoGenerateStubs', true);
+    if (autoGenerateStubs) {
+        generateAndConfigureStubs(outputChannel);
     }
     
     // Initialize diagnostics provider
@@ -127,6 +133,10 @@ export async function activate(context: vscode.ExtensionContext) {
     const installDependenciesCommand = vscode.commands.registerCommand('genlayer.installDependencies', async () => {
         await installPackages(outputChannel);
     });
+
+    const generateStubsCommand = vscode.commands.registerCommand('genlayer.generateStubs', async () => {
+        await generateAndConfigureStubs(outputChannel, true);
+    });
     
     const createContractCommand = vscode.commands.registerCommand('genlayer.createContract', async (uri?: vscode.Uri) => {
         await createNewContract(uri, outputChannel);
@@ -213,6 +223,7 @@ export async function activate(context: vscode.ExtensionContext) {
         debugCommand,
         testLintCommand,
         installDependenciesCommand,
+        generateStubsCommand,
         createContractCommand,
         deployContractCommand,
         onDidSaveDocument,
@@ -1071,4 +1082,89 @@ async function installPackages(outputChannel: vscode.OutputChannel, packages?: s
             outputChannel.appendLine(`Installation failed: ${error}`);
         }
     });
+}
+
+async function generateAndConfigureStubs(outputChannel: vscode.OutputChannel, showProgress = false): Promise<void> {
+    const pythonPath = vscode.workspace.getConfiguration('genlayer').get<string>('python.interpreterPath', 'python3');
+
+    const doGenerate = async () => {
+        try {
+            outputChannel.appendLine('Generating GenLayer type stubs for intellisense...');
+
+            // Run genvm-lint stubs command
+            const { stdout, stderr } = await execAsync(`${pythonPath} -m genvm_linter.cli stubs`);
+
+            // Parse output to get stubs path
+            const output = stdout + stderr;
+            outputChannel.appendLine(output);
+
+            // Extract stubs path from output (looks for "Stubs generated at /path" or similar)
+            const pathMatch = output.match(/(?:Stubs generated at|✓ Stubs generated at)\s+(.+)/);
+            let stubsPath: string | undefined;
+
+            if (pathMatch) {
+                stubsPath = pathMatch[1].trim();
+            } else {
+                // Fallback: check default cache location
+                const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+                const defaultPath = `${homeDir}/.cache/genvm-linter/stubs`;
+                try {
+                    const { stdout: listOutput } = await execAsync(`${pythonPath} -m genvm_linter.cli stubs --list`);
+                    // Get first cached version
+                    const versionMatch = listOutput.match(/(\S+)\s*->\s*(.+)/);
+                    if (versionMatch) {
+                        stubsPath = versionMatch[2].trim();
+                    }
+                } catch {
+                    // Ignore
+                }
+            }
+
+            if (stubsPath) {
+                outputChannel.appendLine(`Stubs path: ${stubsPath}`);
+                await configurePylanceStubPath(stubsPath, outputChannel);
+            } else {
+                outputChannel.appendLine('Could not determine stubs path');
+            }
+        } catch (error: any) {
+            outputChannel.appendLine(`Error generating stubs: ${error.message}`);
+            if (error.message.includes('No module named')) {
+                outputChannel.appendLine('genvm-linter package may not be installed. Run "GenLayer: Install Dependencies"');
+            }
+        }
+    };
+
+    if (showProgress) {
+        await vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: 'Generating GenLayer type stubs',
+            cancellable: false
+        }, async (progress) => {
+            progress.report({ message: 'Downloading SDK and generating stubs...' });
+            await doGenerate();
+            progress.report({ message: 'Complete!' });
+        });
+    } else {
+        // Run in background without blocking
+        doGenerate();
+    }
+}
+
+async function configurePylanceStubPath(stubsPath: string, outputChannel: vscode.OutputChannel): Promise<void> {
+    try {
+        const config = vscode.workspace.getConfiguration('python.analysis');
+        const currentStubPath = config.get<string>('stubPath');
+
+        // Only update if different
+        if (currentStubPath !== stubsPath) {
+            // Update at user level so it persists across workspaces
+            await config.update('stubPath', stubsPath, vscode.ConfigurationTarget.Global);
+            outputChannel.appendLine(`Configured Pylance stubPath: ${stubsPath}`);
+            outputChannel.appendLine('GenLayer intellisense is now available for Python files');
+        } else {
+            outputChannel.appendLine('Pylance stubPath already configured');
+        }
+    } catch (error: any) {
+        outputChannel.appendLine(`Error configuring Pylance: ${error.message}`);
+    }
 }
