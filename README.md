@@ -186,8 +186,8 @@ class TokenContract(gl.Contract):
 ### Development Setup
 
 ```bash
-git clone https://github.com/genlayerlabs/genvm-linter.git
-cd genvm-linter/vscode-extension
+git clone https://github.com/genlayerlabs/vscode-extension.git
+cd vscode-extension
 npm install
 npm run compile
 ```
@@ -200,7 +200,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Related
 
-- [GenVM Linter CLI](../README.md) - Command-line linter
+- [GenVM Linter](https://github.com/genlayerlabs/genvm-linter) - Python CLI package (`pip install genvm-linter`)
 - [GenLayer Documentation](https://docs.genlayer.com/)
 - [GenLayer Studio](https://studio.genlayer.com/)
 - [GenLayer Protocol](https://www.genlayer.com/)

@@ -159,9 +159,8 @@ error: Method 'get_balance' returns 'u256' type. Use 'int' for return types [gen
 
 ### Before Reporting an Issue
 
-1. Check the [CHANGELOG](../../CHANGELOG.md) for recent changes
-2. Search [existing issues](https://github.com/genlayerlabs/genvm-linter/issues)
-3. Try the solutions in this guide
+1. Search [existing issues](https://github.com/genlayerlabs/vscode-extension/issues)
+2. Try the solutions in this guide
 
 ### Reporting Issues
 
@@ -175,6 +174,7 @@ Include in your report:
 
 ### Community Resources
 
-- [GitHub Issues](https://github.com/genlayerlabs/genvm-linter/issues)
+- [VS Code Extension Issues](https://github.com/genlayerlabs/vscode-extension/issues)
+- [GenVM Linter Issues](https://github.com/genlayerlabs/genvm-linter/issues)
 - [GenLayer Documentation](https://docs.genlayer.com)
 - [GenLayer Discord](https://discord.gg/genlayer)

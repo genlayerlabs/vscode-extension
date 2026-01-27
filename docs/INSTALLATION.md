@@ -17,7 +17,7 @@
 
 ### Option 2: Install from VSIX Package
 
-1. Download the latest `.vsix` file from [Releases](https://github.com/genlayerlabs/genvm-linter/releases)
+1. Download the latest `.vsix` file from [Releases](https://github.com/genlayerlabs/vscode-extension/releases)
 2. In VS Code, press Ctrl+Shift+P (Cmd+Shift+P on Mac)
 3. Type "Extensions: Install from VSIX"
 4. Select the downloaded `.vsix` file
@@ -54,8 +54,8 @@ For contributing to the extension:
 ### 1. Clone and Install Dependencies
 
 ```bash
-git clone https://github.com/genlayerlabs/genvm-linter.git
-cd genvm-linter/vscode-extension
+git clone https://github.com/genlayerlabs/vscode-extension.git
+cd vscode-extension
 npm install
 ```
 
@@ -216,6 +216,6 @@ vsce publish
 
 ## Support
 
-- 📖 [GenVM Documentation](https://docs.genlayer.com/)
-- 🐛 [Report Issues](https://github.com/genlayerlabs/genvm-linter/issues)
-- 💬 [GenLayer Community](https://discord.gg/genlayer)
+- [GenVM Documentation](https://docs.genlayer.com/)
+- [Report Issues](https://github.com/genlayerlabs/vscode-extension/issues)
+- [GenLayer Community](https://discord.gg/genlayer)
