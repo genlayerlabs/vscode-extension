@@ -1158,10 +1158,18 @@ async function configurePylanceStubPath(stubsPath: string, outputChannel: vscode
             // Update at user level so it persists across workspaces
             await config.update('stubPath', stubsPath, vscode.ConfigurationTarget.Global);
             outputChannel.appendLine(`Configured Pylance stubPath: ${stubsPath}`);
-            outputChannel.appendLine('GenLayer intellisense is now available for Python files');
         } else {
             outputChannel.appendLine('Pylance stubPath already configured');
         }
+
+        // Suppress "missing module source" warnings for stub-only packages
+        const currentReportMissing = config.get<string>('reportMissingModuleSource');
+        if (currentReportMissing !== 'none') {
+            await config.update('reportMissingModuleSource', 'none', vscode.ConfigurationTarget.Global);
+            outputChannel.appendLine('Suppressed reportMissingModuleSource for stub-only packages');
+        }
+
+        outputChannel.appendLine('GenLayer intellisense is now available for Python files');
     } catch (error: any) {
         outputChannel.appendLine(`Error configuring Pylance: ${error.message}`);
     }
