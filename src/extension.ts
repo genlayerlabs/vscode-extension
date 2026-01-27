@@ -295,49 +295,37 @@ function isGenVMFile(document: vscode.TextDocument): boolean {
 }
 
 async function checkAndInstallDependencies(outputChannel: vscode.OutputChannel): Promise<void> {
-    const pythonPath = vscode.workspace.getConfiguration('genlayer').get<string>('python.interpreterPath', 'python3');
-    
     try {
-        // Check if packages are installed
+        // Check if genvm-linter is available (try running it)
         let genvmInstalled = false;
-        let mypyInstalled = false;
-        
+
         try {
-            await execAsync(`${pythonPath} -m pip show genvm-linter`);
+            await execAsync('genvm-lint --version');
             genvmInstalled = true;
         } catch (error) {
-            // Package not installed
+            // CLI not found, try as Python module
+            try {
+                await execAsync('python3 -m genvm_linter.cli --version');
+                genvmInstalled = true;
+            } catch (e) {
+                // Not installed
+            }
         }
-        
-        try {
-            await execAsync(`${pythonPath} -m pip show mypy`);
-            mypyInstalled = true;
-        } catch (error) {
-            // Package not installed
-        }
-        
-        // If both are installed, we're done
-        if (genvmInstalled && mypyInstalled) {
-            outputChannel.appendLine('All required Python packages are installed');
+
+        if (genvmInstalled) {
+            outputChannel.appendLine('genvm-linter is installed');
             return;
         }
-        
-        // Build message about missing packages
-        const missingPackages = [];
-        if (!genvmInstalled) missingPackages.push('genvm-linter');
-        if (!mypyInstalled) missingPackages.push('mypy');
-        
-        const message = `GenVM Linter requires Python packages: ${missingPackages.join(' and ')}. Would you like to install them?`;
-        
+
         const response = await vscode.window.showInformationMessage(
-            message,
+            'GenLayer extension requires genvm-linter. Install now?',
             'Install',
             'Later',
             'Don\'t Ask Again'
         );
-        
+
         if (response === 'Install') {
-            await installPackages(outputChannel, missingPackages);
+            await installPackages(outputChannel, ['genvm-linter']);
         } else if (response === 'Don\'t Ask Again') {
             await vscode.workspace.getConfiguration('genlayer').update('autoInstallDependencies', false, true);
         }
@@ -1019,9 +1007,8 @@ class ${contractName}(gl.Contract):
 }
 
 async function installPackages(outputChannel: vscode.OutputChannel, packages?: string[]): Promise<void> {
-    const pythonPath = vscode.workspace.getConfiguration('genlayer').get<string>('python.interpreterPath', 'python3');
-    const packagesToInstall = packages || ['genvm-linter', 'mypy'];
-    
+    const packagesToInstall = packages || ['genvm-linter'];
+
     await vscode.window.withProgress({
         location: vscode.ProgressLocation.Notification,
         title: 'Installing GenVM Linter dependencies',
@@ -1030,38 +1017,49 @@ async function installPackages(outputChannel: vscode.OutputChannel, packages?: s
         try {
             outputChannel.appendLine('=== Installing Python Dependencies ===');
             outputChannel.show();
-            
+
             for (let i = 0; i < packagesToInstall.length; i++) {
                 const pkg = packagesToInstall[i];
                 const percentage = (i / packagesToInstall.length) * 100;
-                
-                progress.report({ 
-                    increment: percentage, 
-                    message: `Installing ${pkg}...` 
+
+                progress.report({
+                    increment: percentage,
+                    message: `Installing ${pkg}...`
                 });
-                
+
                 outputChannel.appendLine(`Installing ${pkg}...`);
-                
+
+                // Try pipx first (recommended for CLI tools on modern macOS/Linux)
                 try {
-                    const { stdout, stderr } = await execAsync(`${pythonPath} -m pip install ${pkg}`);
+                    outputChannel.appendLine(`Trying pipx install ${pkg}...`);
+                    const { stdout, stderr } = await execAsync(`pipx install ${pkg}`);
                     outputChannel.appendLine(stdout);
                     if (stderr) outputChannel.appendLine(stderr);
-                } catch (error: any) {
-                    outputChannel.appendLine(`Error installing ${pkg}: ${error.message}`);
-                    
-                    // Check if it's a permission error
-                    if (error.message.includes('Permission denied') || error.message.includes('access denied')) {
-                        const retryMessage = `Installation failed due to permissions. Try running:\n${pythonPath} -m pip install --user ${pkg}`;
-                        vscode.window.showErrorMessage(retryMessage, 'Copy Command').then(response => {
-                            if (response === 'Copy Command') {
-                                vscode.env.clipboard.writeText(`${pythonPath} -m pip install --user ${pkg}`);
-                            }
-                        });
-                    } else {
-                        vscode.window.showErrorMessage(`Failed to install ${pkg}: ${error.message}`);
-                    }
-                    throw error;
+                    continue; // Success, move to next package
+                } catch (pipxError: any) {
+                    outputChannel.appendLine(`pipx not available or failed: ${pipxError.message}`);
                 }
+
+                // Fall back to pip with --user flag
+                try {
+                    outputChannel.appendLine(`Trying pip install --user ${pkg}...`);
+                    const { stdout, stderr } = await execAsync(`python3 -m pip install --user ${pkg}`);
+                    outputChannel.appendLine(stdout);
+                    if (stderr) outputChannel.appendLine(stderr);
+                    continue; // Success
+                } catch (pipUserError: any) {
+                    outputChannel.appendLine(`pip --user failed: ${pipUserError.message}`);
+                }
+
+                // Final fallback: suggest manual installation
+                const errorMsg = `Could not install ${pkg} automatically. Please install manually:\n  pipx install ${pkg}\n  or: pip install --user ${pkg}`;
+                outputChannel.appendLine(errorMsg);
+                vscode.window.showErrorMessage(`Failed to install ${pkg}. See GenLayer output for instructions.`, 'Copy Command').then(response => {
+                    if (response === 'Copy Command') {
+                        vscode.env.clipboard.writeText(`pipx install ${pkg}`);
+                    }
+                });
+                throw new Error(errorMsg);
             }
             
             progress.report({ increment: 100, message: 'Installation complete!' });
