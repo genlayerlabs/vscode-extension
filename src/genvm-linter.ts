@@ -74,24 +74,27 @@ export class GenVMLinter {
 
     private async runLinter(filePath: string): Promise<GenVMLintResult[]> {
         return new Promise((resolve, reject) => {
-            const pythonPath = this.config.get('python.interpreterPath', 'python3');
             const severity = this.config.get('linting.severity', 'warning') as string;
             const excludeRules = this.config.get('linting.excludeRules', []) as string[];
 
-            const args = ['-m', 'genvm_linter.cli', filePath, '--format', 'json'];
-            
+            // Try genvm-lint CLI first (works with pipx), fall back to python module
+            let command = 'genvm-lint';
+            let args = ['lint', filePath, '--json'];
+
+            // Add severity filter
             if (severity && severity !== 'info') {
-                args.push('--severity', severity);
+                // Modern CLI doesn't have severity filter, we filter client-side
             }
 
             excludeRules.forEach(rule => {
-                args.push('--exclude-rule', rule);
+                // Modern CLI doesn't have exclude-rule, we filter client-side
             });
 
-            this.outputChannel.appendLine(`Running: ${pythonPath} ${args.join(' ')}`);
+            this.outputChannel.appendLine(`Running: ${command} ${args.join(' ')}`);
 
-            const childProcess: ChildProcess = spawn(pythonPath, args, {
-                cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd()
+            const childProcess: ChildProcess = spawn(command, args, {
+                cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd(),
+                shell: true  // Needed to find CLI in PATH on some systems
             });
 
             let stdout = '';
@@ -114,9 +117,41 @@ export class GenVMLinter {
                 try {
                     if (stdout.trim()) {
                         this.outputChannel.appendLine(`GenLayer stdout length: ${stdout.length}`);
-                        const output: GenVMLintOutput = JSON.parse(stdout);
-                        this.outputChannel.appendLine(`GenLayer parsed ${output.results?.length || 0} results`);
-                        resolve(output.results || []);
+                        const output = JSON.parse(stdout);
+
+                        // Handle modern format: {ok, passed, warnings: [{code, msg, line}]}
+                        // Convert to internal format
+                        let results: GenVMLintResult[] = [];
+
+                        if (output.warnings && Array.isArray(output.warnings)) {
+                            // Modern format
+                            results = output.warnings.map((w: any) => ({
+                                rule_id: w.code || 'unknown',
+                                message: w.msg || w.message || '',
+                                severity: w.code?.startsWith('E') ? 'error' : 'warning',
+                                line: w.line || 1,
+                                column: w.column || 0,
+                                suggestion: w.suggestion
+                            }));
+                        } else if (output.results && Array.isArray(output.results)) {
+                            // Legacy format
+                            results = output.results;
+                        }
+
+                        // Apply client-side severity filter
+                        const severityConfig = this.config.get('linting.severity', 'warning') as string;
+                        if (severityConfig === 'error') {
+                            results = results.filter(r => r.severity === 'error');
+                        }
+
+                        // Apply client-side rule exclusions
+                        const excludeRules = this.config.get('linting.excludeRules', []) as string[];
+                        if (excludeRules.length > 0) {
+                            results = results.filter(r => !excludeRules.includes(r.rule_id));
+                        }
+
+                        this.outputChannel.appendLine(`GenLayer parsed ${results.length} results`);
+                        resolve(results);
                     } else {
                         this.outputChannel.appendLine(`GenLayer: No output received`);
                         resolve([]);
