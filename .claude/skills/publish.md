@@ -2,46 +2,53 @@
 
 Publish GenLayer extension to VS Code Marketplace and Open VSX (for Cursor).
 
-## Steps
+## Auto Publish (Recommended)
 
-1. **Bump version**:
-   ```bash
-   cd /Users/edgars/Dev/vscode-extension
-   npm version patch --no-git-tag-version
-   ```
+GitHub Action publishes automatically on push to main when version changes.
 
-2. **Build vsix**:
-   ```bash
-   npm run package
-   ```
+```bash
+cd /Users/edgars/Dev/vscode-extension
 
-3. **Publish to VS Code Marketplace**:
-   ```bash
-   VSCE_TOKEN=$(op item get <VSCE_ITEM_ID> --account yeagerai.1password.com --format json | jq -r '.fields[] | select(.id == "credential") | .value')
-   npx vsce publish -p "$VSCE_TOKEN"
-   ```
-   Or upload manually at: https://marketplace.visualstudio.com/manage
+# Bump version
+npm version patch --no-git-tag-version
 
-4. **Publish to Open VSX** (for Cursor):
-   ```bash
-   OVSX_TOKEN=$(op item get o7mzy5y7w2mblj3okwf5oaejsa --account yeagerai.1password.com --format json | jq -r '.fields[] | select(.id == "credential") | .value')
-   npx ovsx publish genlayer-*.vsix -p "$OVSX_TOKEN"
-   ```
+# Commit and push
+git add package.json package-lock.json
+git commit -m "Release v$(node -p "require('./package.json').version")"
+git push origin main
+```
 
-5. **Commit and push**:
-   ```bash
-   git add -A && git commit -m "Release vX.Y.Z" && git push
-   ```
+Action checks if version exists → publishes to both marketplaces if new.
 
-## 1Password
+Monitor: https://github.com/genlayerlabs/vscode-extension/actions
 
-Open VSX token stored in yeagerai.1password.com:
-- Item ID: `o7mzy5y7w2mblj3okwf5oaejsa`
-- Name: "Open VSX Access Token (GenLayer VSCode Extension)"
-- Vault: DevOps
+## Manual Publish (Fallback)
 
-## Notes
+If GitHub Action fails or secrets expire:
 
-- **VS Code Marketplace**: Publisher is `genlayer-labs`
-- **Open VSX**: Namespace `genlayer-labs` must be claimed first
-- **Icon**: `images/icon.png` (128x128 PNG)
+```bash
+cd /Users/edgars/Dev/vscode-extension
+
+# Build
+npm run package
+
+# Publish to VS Code Marketplace
+VSCE_TOKEN=$(op read "op://DevOps/VSCE PAT/credential" --account yeagerai.1password.com)
+npx vsce publish -p "$VSCE_TOKEN"
+
+# Publish to Open VSX
+OVSX_TOKEN=$(op read "op://DevOps/Open VSX Access Token (GenLayer VSCode Extension)/credential" --account yeagerai.1password.com)
+npx ovsx publish genlayer-*.vsix -p "$OVSX_TOKEN"
+```
+
+## GitHub Secrets
+
+Required in repo Settings → Secrets → Actions:
+- `VSCE_PAT` - VS Code Marketplace token
+- `OVSX_PAT` - Open VSX token
+
+## Links
+
+- VS Code Marketplace: https://marketplace.visualstudio.com/items?itemName=genlayer-labs.genlayer
+- Open VSX: https://open-vsx.org/extension/genlayer-labs/genlayer
+- Publisher: `genlayer-labs`

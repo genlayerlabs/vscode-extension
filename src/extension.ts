@@ -25,10 +25,10 @@ export async function activate(context: vscode.ExtensionContext) {
         await checkAndInstallDependencies(outputChannel);
     }
 
-    // Generate type stubs for Pylance intellisense
-    const autoGenerateStubs = vscode.workspace.getConfiguration('genlayer').get<boolean>('autoGenerateStubs', true);
-    if (autoGenerateStubs) {
-        generateAndConfigureStubs(outputChannel);
+    // Setup SDK for Pylance intellisense (async, non-blocking)
+    const autoSetupSdk = vscode.workspace.getConfiguration('genlayer').get<boolean>('autoGenerateStubs', true);
+    if (autoSetupSdk) {
+        setupSdkAndConfigurePylance(outputChannel);
     }
     
     // Initialize diagnostics provider
@@ -135,7 +135,7 @@ export async function activate(context: vscode.ExtensionContext) {
     });
 
     const generateStubsCommand = vscode.commands.registerCommand('genlayer.generateStubs', async () => {
-        await generateAndConfigureStubs(outputChannel, true);
+        await setupSdkAndConfigurePylance(outputChannel, true);
     });
     
     const createContractCommand = vscode.commands.registerCommand('genlayer.createContract', async (uri?: vscode.Uri) => {
@@ -1082,50 +1082,39 @@ async function installPackages(outputChannel: vscode.OutputChannel, packages?: s
     });
 }
 
-async function generateAndConfigureStubs(outputChannel: vscode.OutputChannel, showProgress = false): Promise<void> {
-    const pythonPath = vscode.workspace.getConfiguration('genlayer').get<string>('python.interpreterPath', 'python3');
-
-    const doGenerate = async () => {
+async function setupSdkAndConfigurePylance(outputChannel: vscode.OutputChannel, showProgress = false): Promise<void> {
+    const doSetup = async () => {
         try {
-            outputChannel.appendLine('Generating GenLayer type stubs for intellisense...');
+            outputChannel.appendLine('Setting up GenLayer SDK for intellisense...');
 
-            // Run genvm-lint stubs command
-            const { stdout, stderr } = await execAsync(`${pythonPath} -m genvm_linter.cli stubs`);
+            // Try genvm-lint setup --json command (v0.4.0+)
+            let result: { ok: boolean; extraPaths?: string[]; version?: string; error?: string } | null = null;
 
-            // Parse output to get stubs path
-            const output = stdout + stderr;
-            outputChannel.appendLine(output);
-
-            // Extract stubs path from output (looks for "Stubs generated at /path" or similar)
-            const pathMatch = output.match(/(?:Stubs generated at|✓ Stubs generated at)\s+(.+)/);
-            let stubsPath: string | undefined;
-
-            if (pathMatch) {
-                stubsPath = pathMatch[1].trim();
-            } else {
-                // Fallback: check default cache location
-                const homeDir = process.env.HOME || process.env.USERPROFILE || '';
-                const defaultPath = `${homeDir}/.cache/genvm-linter/stubs`;
+            try {
+                const { stdout } = await execAsync('genvm-lint setup --json');
+                result = JSON.parse(stdout.trim());
+            } catch (cliError: any) {
+                // CLI not found, try as Python module
                 try {
-                    const { stdout: listOutput } = await execAsync(`${pythonPath} -m genvm_linter.cli stubs --list`);
-                    // Get first cached version
-                    const versionMatch = listOutput.match(/(\S+)\s*->\s*(.+)/);
-                    if (versionMatch) {
-                        stubsPath = versionMatch[2].trim();
-                    }
+                    const { stdout } = await execAsync('python3 -m genvm_linter.cli setup --json');
+                    result = JSON.parse(stdout.trim());
                 } catch {
-                    // Ignore
+                    // Fall back to old stubs command for older genvm-linter versions
+                    outputChannel.appendLine('setup command not available, falling back to stubs...');
+                    await legacyGenerateStubs(outputChannel);
+                    return;
                 }
             }
 
-            if (stubsPath) {
-                outputChannel.appendLine(`Stubs path: ${stubsPath}`);
-                await configurePylanceStubPath(stubsPath, outputChannel);
+            if (result?.ok && result.extraPaths && result.extraPaths.length > 0) {
+                outputChannel.appendLine(`SDK version: ${result.version}`);
+                outputChannel.appendLine(`extraPaths: ${JSON.stringify(result.extraPaths)}`);
+                await configurePylanceExtraPaths(result.extraPaths, outputChannel);
             } else {
-                outputChannel.appendLine('Could not determine stubs path');
+                outputChannel.appendLine(`SDK setup failed: ${result?.error || 'unknown error'}`);
             }
         } catch (error: any) {
-            outputChannel.appendLine(`Error generating stubs: ${error.message}`);
+            outputChannel.appendLine(`Error setting up SDK: ${error.message}`);
             if (error.message.includes('No module named')) {
                 outputChannel.appendLine('genvm-linter package may not be installed. Run "GenLayer: Install Dependencies"');
             }
@@ -1135,41 +1124,66 @@ async function generateAndConfigureStubs(outputChannel: vscode.OutputChannel, sh
     if (showProgress) {
         await vscode.window.withProgress({
             location: vscode.ProgressLocation.Notification,
-            title: 'Generating GenLayer type stubs',
+            title: 'Setting up GenLayer SDK',
             cancellable: false
         }, async (progress) => {
-            progress.report({ message: 'Downloading SDK and generating stubs...' });
-            await doGenerate();
+            progress.report({ message: 'Downloading SDK...' });
+            await doSetup();
             progress.report({ message: 'Complete!' });
         });
     } else {
-        // Run in background without blocking
-        doGenerate();
+        // Run in background without blocking (async)
+        doSetup();
     }
 }
 
-async function configurePylanceStubPath(stubsPath: string, outputChannel: vscode.OutputChannel): Promise<void> {
+async function legacyGenerateStubs(outputChannel: vscode.OutputChannel): Promise<void> {
+    // Fallback for older genvm-linter versions that don't have setup command
+    try {
+        const { stdout, stderr } = await execAsync('genvm-lint stubs');
+        const output = stdout + stderr;
+        outputChannel.appendLine(output);
+
+        // Extract stubs path
+        const pathMatch = output.match(/(?:Stubs generated at|✓ Stubs generated at)\s+(.+)/);
+        if (pathMatch) {
+            const stubsPath = pathMatch[1].trim();
+            const config = vscode.workspace.getConfiguration('python.analysis');
+            await config.update('stubPath', stubsPath, vscode.ConfigurationTarget.Global);
+            await config.update('reportMissingModuleSource', 'none', vscode.ConfigurationTarget.Global);
+            outputChannel.appendLine(`Configured Pylance stubPath: ${stubsPath}`);
+        }
+    } catch (error: any) {
+        outputChannel.appendLine(`Legacy stubs generation failed: ${error.message}`);
+    }
+}
+
+async function configurePylanceExtraPaths(extraPaths: string[], outputChannel: vscode.OutputChannel): Promise<void> {
     try {
         const config = vscode.workspace.getConfiguration('python.analysis');
-        const currentStubPath = config.get<string>('stubPath');
+        const currentExtraPaths = config.get<string[]>('extraPaths') || [];
 
-        // Only update if different
-        if (currentStubPath !== stubsPath) {
-            // Update at user level so it persists across workspaces
-            await config.update('stubPath', stubsPath, vscode.ConfigurationTarget.Global);
-            outputChannel.appendLine(`Configured Pylance stubPath: ${stubsPath}`);
+        // Merge new paths with existing, avoiding duplicates
+        const mergedPaths = [...new Set([...currentExtraPaths, ...extraPaths])];
+
+        // Check if update is needed
+        const needsUpdate = extraPaths.some(p => !currentExtraPaths.includes(p));
+
+        if (needsUpdate) {
+            await config.update('extraPaths', mergedPaths, vscode.ConfigurationTarget.Global);
+            outputChannel.appendLine(`Configured Pylance extraPaths with ${extraPaths.length} SDK paths`);
         } else {
-            outputChannel.appendLine('Pylance stubPath already configured');
+            outputChannel.appendLine('Pylance extraPaths already configured');
         }
 
-        // Suppress "missing module source" warnings for stub-only packages
+        // Suppress "missing module source" warnings
         const currentReportMissing = config.get<string>('reportMissingModuleSource');
         if (currentReportMissing !== 'none') {
             await config.update('reportMissingModuleSource', 'none', vscode.ConfigurationTarget.Global);
-            outputChannel.appendLine('Suppressed reportMissingModuleSource for stub-only packages');
+            outputChannel.appendLine('Suppressed reportMissingModuleSource warnings');
         }
 
-        outputChannel.appendLine('GenLayer intellisense is now available for Python files');
+        outputChannel.appendLine('GenLayer intellisense is now available (hover docs, go-to-definition)');
     } catch (error: any) {
         outputChannel.appendLine(`Error configuring Pylance: ${error.message}`);
     }

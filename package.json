@@ -2,7 +2,7 @@
   "name": "genlayer",
   "displayName": "GenLayer",
   "description": "Official VS Code extension for developing GenLayer intelligent contracts with Python",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "publisher": "genlayer-labs",
   "icon": "images/icon.png",
   "license": "MIT",
@@ -90,7 +90,7 @@
         "genlayer.autoGenerateStubs": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically generate type stubs for Pylance intellisense on activation"
+          "description": "Automatically download GenLayer SDK for Pylance intellisense on activation"
         }
       }
     },
@@ -128,9 +128,9 @@
       },
       {
         "command": "genlayer.generateStubs",
-        "title": "Generate Type Stubs",
+        "title": "Setup SDK Intellisense",
         "category": "GenLayer",
-        "description": "Generate GenLayer SDK type stubs for Pylance intellisense"
+        "description": "Download GenLayer SDK for Pylance intellisense (hover docs, go-to-definition)"
       },
       {
         "command": "genlayer.createContract",
