@@ -2,7 +2,7 @@
   "name": "genlayer",
   "displayName": "GenLayer",
   "description": "Official VS Code extension for developing GenLayer intelligent contracts with Python",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "publisher": "genlayer-labs",
   "icon": "images/icon.png",
   "license": "MIT",

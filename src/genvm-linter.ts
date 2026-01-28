@@ -201,7 +201,7 @@ export class GenVMLinter {
                                 message: w.msg || w.message || '',
                                 severity: w.code?.startsWith('E') ? 'error' : 'warning',
                                 line: w.line || 1,
-                                column: w.column || 0,
+                                column: w.col || w.column || 0,
                                 suggestion: w.suggestion
                             }));
                         } else if (output.results && Array.isArray(output.results)) {

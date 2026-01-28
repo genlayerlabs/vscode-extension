@@ -1416,9 +1416,8 @@ async function setupSdkAndConfigurePylance(outputChannel: vscode.OutputChannel, 
                 result = JSON.parse(stdout.trim());
             } catch (error: any) {
                 outputChannel.appendLine(`Failed to run genvm-lint setup: ${error.message}`);
-                // Clear cached path in case it's stale
-                resolvedGenvmLintPath = null;
-                showGenvmLintNotFoundError();
+                // Don't show "not found" error - the linter exists but setup command failed
+                // This is not critical - linting still works, just no auto-configured intellisense
                 return;
             }
 
