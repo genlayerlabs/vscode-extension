@@ -1,8 +1,14 @@
 import * as vscode from 'vscode';
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, ChildProcess, execFile } from 'child_process';
+import { promisify } from 'util';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
+
+const execFileAsync = promisify(execFile);
+
+// Cached resolved path to genvm-lint
+let resolvedGenvmLintPath: string | null = null;
 
 export interface GenVMLintResult {
     rule_id: string;
@@ -24,6 +30,78 @@ export interface GenVMLintOutput {
             info: number;
         };
     };
+}
+
+/**
+ * Resolve the path to genvm-lint executable.
+ */
+async function resolveGenvmLintPath(outputChannel: vscode.OutputChannel): Promise<string | null> {
+    // Return cached path if available and still exists
+    if (resolvedGenvmLintPath && fs.existsSync(resolvedGenvmLintPath)) {
+        return resolvedGenvmLintPath;
+    }
+
+    const config = vscode.workspace.getConfiguration('genlayer');
+
+    // 1. Check user setting
+    const userPath = config.get<string>('linterPath', '');
+    if (userPath) {
+        const expandedPath = userPath.replace(/^~/, os.homedir());
+        if (fs.existsSync(expandedPath)) {
+            outputChannel.appendLine(`Using configured genvm-lint path: ${expandedPath}`);
+            resolvedGenvmLintPath = expandedPath;
+            return expandedPath;
+        }
+    }
+
+    // 2. Try login shell lookup (gets full PATH including pipx, homebrew, etc.)
+    if (process.platform !== 'win32') {
+        try {
+            const shell = process.env.SHELL || '/bin/zsh';
+            const { stdout } = await execFileAsync(shell, ['-l', '-c', 'which genvm-lint'], {
+                timeout: 5000
+            });
+            const foundPath = stdout.trim();
+            if (foundPath && fs.existsSync(foundPath)) {
+                outputChannel.appendLine(`Found genvm-lint via login shell: ${foundPath}`);
+                resolvedGenvmLintPath = foundPath;
+                return foundPath;
+            }
+        } catch {
+            // Login shell lookup failed, continue to fallbacks
+        }
+    }
+
+    // 3. Check common installation paths
+    const homeDir = os.homedir();
+    const commonPaths = [
+        path.join(homeDir, '.local', 'bin', 'genvm-lint'),           // pipx default
+        '/opt/homebrew/bin/genvm-lint',                              // Homebrew ARM Mac
+        '/usr/local/bin/genvm-lint',                                 // Homebrew Intel Mac / manual
+        path.join(homeDir, 'Library', 'Python', '3.12', 'bin', 'genvm-lint'),
+        path.join(homeDir, 'Library', 'Python', '3.11', 'bin', 'genvm-lint'),
+        path.join(homeDir, 'Library', 'Python', '3.10', 'bin', 'genvm-lint'),
+    ];
+
+    // Windows paths
+    if (process.platform === 'win32') {
+        const localAppData = process.env.LOCALAPPDATA || path.join(homeDir, 'AppData', 'Local');
+        commonPaths.push(
+            path.join(localAppData, 'Programs', 'Python', 'Python312', 'Scripts', 'genvm-lint.exe'),
+            path.join(localAppData, 'Programs', 'Python', 'Python311', 'Scripts', 'genvm-lint.exe'),
+            path.join(homeDir, '.local', 'bin', 'genvm-lint.exe'),
+        );
+    }
+
+    for (const p of commonPaths) {
+        if (fs.existsSync(p)) {
+            outputChannel.appendLine(`Found genvm-lint at common path: ${p}`);
+            resolvedGenvmLintPath = p;
+            return p;
+        }
+    }
+
+    return null;
 }
 
 export class GenVMLinter {
@@ -73,28 +151,21 @@ export class GenVMLinter {
     }
 
     private async runLinter(filePath: string): Promise<GenVMLintResult[]> {
+        // Resolve genvm-lint path first
+        const genvmLintPath = await resolveGenvmLintPath(this.outputChannel);
+        if (!genvmLintPath) {
+            this.outputChannel.appendLine('genvm-lint not found. Please install it (pipx install genvm-linter) or set genlayer.linterPath in settings.');
+            return [];
+        }
+
         return new Promise((resolve, reject) => {
-            const severity = this.config.get('linting.severity', 'warning') as string;
-            const excludeRules = this.config.get('linting.excludeRules', []) as string[];
+            const args = ['lint', filePath, '--json'];
 
-            // Try genvm-lint CLI first (works with pipx), fall back to python module
-            let command = 'genvm-lint';
-            let args = ['lint', filePath, '--json'];
+            this.outputChannel.appendLine(`Running: ${genvmLintPath} ${args.join(' ')}`);
 
-            // Add severity filter
-            if (severity && severity !== 'info') {
-                // Modern CLI doesn't have severity filter, we filter client-side
-            }
-
-            excludeRules.forEach(rule => {
-                // Modern CLI doesn't have exclude-rule, we filter client-side
-            });
-
-            this.outputChannel.appendLine(`Running: ${command} ${args.join(' ')}`);
-
-            const childProcess: ChildProcess = spawn(command, args, {
+            const childProcess: ChildProcess = spawn(genvmLintPath, args, {
                 cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd(),
-                shell: true  // Needed to find CLI in PATH on some systems
+                shell: false  // Use resolved path directly
             });
 
             let stdout = '';

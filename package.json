@@ -2,7 +2,7 @@
   "name": "genlayer",
   "displayName": "GenLayer",
   "description": "Official VS Code extension for developing GenLayer intelligent contracts with Python",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "publisher": "genlayer-labs",
   "icon": "images/icon.png",
   "license": "MIT",
@@ -77,10 +77,15 @@
             ]
           ]
         },
+        "genlayer.linterPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to genvm-lint executable. Leave empty for auto-detection."
+        },
         "genlayer.python.interpreterPath": {
           "type": "string",
           "default": "python3",
-          "description": "Path to Python interpreter with genvm-linter installed"
+          "description": "Path to Python interpreter (used for deployment)"
         },
         "genlayer.autoInstallDependencies": {
           "type": "boolean",
