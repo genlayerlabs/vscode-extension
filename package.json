@@ -2,7 +2,7 @@
   "name": "genlayer",
   "displayName": "GenLayer",
   "description": "Official VS Code extension for developing GenLayer intelligent contracts with Python",
-  "version": "0.1.6",
+  "version": "0.2.0",
   "publisher": "genlayer-labs",
   "icon": "images/icon.png",
   "license": "MIT",
@@ -131,6 +131,18 @@
         "title": "Setup SDK Intellisense",
         "category": "GenLayer",
         "description": "Download GenLayer SDK for Pylance intellisense (hover docs, go-to-definition)"
+      },
+      {
+        "command": "genlayer.refreshSdk",
+        "title": "Refresh SDK Version",
+        "category": "GenLayer",
+        "description": "Refresh SDK version based on current contract (updates Pylance extraPaths)"
+      },
+      {
+        "command": "genlayer.upgradeLinter",
+        "title": "Upgrade Linter",
+        "category": "GenLayer",
+        "description": "Upgrade genvm-linter to the latest version"
       },
       {
         "command": "genlayer.createContract",

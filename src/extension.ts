@@ -137,6 +137,53 @@ export async function activate(context: vscode.ExtensionContext) {
     const generateStubsCommand = vscode.commands.registerCommand('genlayer.generateStubs', async () => {
         await setupSdkAndConfigurePylance(outputChannel, true);
     });
+
+    const refreshSdkCommand = vscode.commands.registerCommand('genlayer.refreshSdk', async () => {
+        const editor = vscode.window.activeTextEditor;
+        let contractPath: string | undefined;
+
+        if (editor && editor.document.languageId === 'python' && isGenVMFile(editor.document)) {
+            contractPath = editor.document.fileName;
+        }
+
+        await setupSdkAndConfigurePylance(outputChannel, true, contractPath);
+    });
+
+    const upgradeLinterCommand = vscode.commands.registerCommand('genlayer.upgradeLinter', async () => {
+        await vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: 'Upgrading genvm-linter',
+            cancellable: false
+        }, async (progress) => {
+            progress.report({ message: 'Checking versions...' });
+
+            const installedVersion = await getInstalledLinterVersion(outputChannel);
+            if (!installedVersion) {
+                vscode.window.showWarningMessage('genvm-linter not installed. Run "GenLayer: Install Dependencies" first.');
+                return;
+            }
+
+            const latestVersion = await getLatestLinterVersion(outputChannel);
+            if (!latestVersion) {
+                vscode.window.showWarningMessage('Could not check latest version. Check your internet connection.');
+                return;
+            }
+
+            if (compareVersions(latestVersion, installedVersion) <= 0) {
+                vscode.window.showInformationMessage(`genvm-linter ${installedVersion} is already up to date.`);
+                return;
+            }
+
+            progress.report({ message: `Upgrading ${installedVersion} → ${latestVersion}...` });
+
+            const success = await upgradeLinter(outputChannel);
+            if (success) {
+                vscode.window.showInformationMessage(`genvm-linter upgraded to ${latestVersion}. Run "GenLayer: Refresh SDK Version" to update intellisense.`);
+            } else {
+                vscode.window.showErrorMessage('Upgrade failed. Check GenLayer output for details.');
+            }
+        });
+    });
     
     const createContractCommand = vscode.commands.registerCommand('genlayer.createContract', async (uri?: vscode.Uri) => {
         await createNewContract(uri, outputChannel);
@@ -188,9 +235,11 @@ export async function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    const onDidChangeActiveEditor = vscode.window.onDidChangeActiveTextEditor((editor) => {
+    const onDidChangeActiveEditor = vscode.window.onDidChangeActiveTextEditor(async (editor) => {
         if (editor && (editor.document.languageId === 'python' ) && isGenVMFile(editor.document)) {
             diagnosticsProvider.lintDocument(editor.document);
+            // Check for SDK version mismatch
+            await checkSdkVersionMismatch(editor.document, outputChannel);
         }
     });
 
@@ -224,6 +273,8 @@ export async function activate(context: vscode.ExtensionContext) {
         testLintCommand,
         installDependenciesCommand,
         generateStubsCommand,
+        refreshSdkCommand,
+        upgradeLinterCommand,
         createContractCommand,
         deployContractCommand,
         onDidSaveDocument,
@@ -266,6 +317,74 @@ export function deactivate() {
     }
 }
 
+// Track which files we've already shown mismatch warning for (to avoid spamming)
+const mismatchWarningShown = new Set<string>();
+
+function getContractSdkHash(document: vscode.TextDocument): string | null {
+    if (document.lineCount > 0) {
+        const firstLine = document.lineAt(0).text.trim();
+        const match = firstLine.match(/^#\s*\{\s*"Depends"\s*:\s*"py-genlayer:([^"]+)"/);
+        if (match) {
+            return match[1];
+        }
+    }
+    return null;
+}
+
+function getCurrentSdkHash(): string | null {
+    const config = vscode.workspace.getConfiguration('python.analysis');
+    const extraPaths = config.get<string[]>('extraPaths') || [];
+
+    // Look for genvm-linter path and extract hash
+    // Path format: ~/.cache/genvm-linter/extracted/v0.2.12.tar/py-lib-genlayer-std/HASH
+    for (const p of extraPaths) {
+        const match = p.match(/genvm-linter.*?py-lib-genlayer-std\/([^/]+)/);
+        if (match) {
+            return match[1];
+        }
+    }
+    return null;
+}
+
+async function checkSdkVersionMismatch(document: vscode.TextDocument, outputChannel: vscode.OutputChannel): Promise<void> {
+    const contractHash = getContractSdkHash(document);
+    if (!contractHash || contractHash === 'test') {
+        return; // No hash or test contract
+    }
+
+    const currentHash = getCurrentSdkHash();
+    if (!currentHash) {
+        return; // No SDK configured yet
+    }
+
+    // Check if hashes match (compare first 8 chars to handle truncation)
+    const contractPrefix = contractHash.substring(0, 8);
+    const currentPrefix = currentHash.substring(0, 8);
+
+    if (contractPrefix === currentPrefix) {
+        return; // Matches
+    }
+
+    // Check if we already showed warning for this file
+    const fileKey = `${document.fileName}:${contractHash}`;
+    if (mismatchWarningShown.has(fileKey)) {
+        return;
+    }
+    mismatchWarningShown.add(fileKey);
+
+    outputChannel.appendLine(`SDK mismatch: contract wants ${contractPrefix}..., configured is ${currentPrefix}...`);
+
+    const response = await vscode.window.showWarningMessage(
+        `Contract uses different SDK version. Switch intellisense to match?`,
+        'Switch',
+        'Ignore'
+    );
+
+    if (response === 'Switch') {
+        await setupSdkAndConfigurePylance(outputChannel, true, document.fileName);
+    }
+}
+
 function isGenVMFile(document: vscode.TextDocument): boolean {
     // Check if file contains GenVM magic comment
     if (document.lineCount > 0) {
@@ -294,40 +413,116 @@ function isGenVMFile(document: vscode.TextDocument): boolean {
     return false;
 }
 
+async function getInstalledLinterVersion(outputChannel: vscode.OutputChannel): Promise<string | null> {
+    try {
+        const { stdout } = await execAsync('genvm-lint --version');
+        const match = stdout.match(/(\d+\.\d+\.\d+)/);
+        return match ? match[1] : null;
+    } catch {
+        try {
+            const { stdout } = await execAsync('python3 -m genvm_linter.cli --version');
+            const match = stdout.match(/(\d+\.\d+\.\d+)/);
+            return match ? match[1] : null;
+        } catch {
+            return null;
+        }
+    }
+}
+
+async function getLatestLinterVersion(outputChannel: vscode.OutputChannel): Promise<string | null> {
+    try {
+        // Use pip index versions or PyPI JSON API
+        const { stdout } = await execAsync('pip index versions genvm-linter 2>/dev/null || python3 -m pip index versions genvm-linter 2>/dev/null');
+        const match = stdout.match(/LATEST:\s*(\d+\.\d+\.\d+)/);
+        return match ? match[1] : null;
+    } catch {
+        // Fallback: query PyPI JSON API
+        try {
+            const { stdout } = await execAsync('curl -s https://pypi.org/pypi/genvm-linter/json | python3 -c "import sys,json; print(json.load(sys.stdin)[\'info\'][\'version\'])"');
+            return stdout.trim() || null;
+        } catch {
+            return null;
+        }
+    }
+}
+
+function compareVersions(v1: string, v2: string): number {
+    const parts1 = v1.split('.').map(Number);
+    const parts2 = v2.split('.').map(Number);
+    for (let i = 0; i < 3; i++) {
+        if (parts1[i] > parts2[i]) return 1;
+        if (parts1[i] < parts2[i]) return -1;
+    }
+    return 0;
+}
+
+async function upgradeLinter(outputChannel: vscode.OutputChannel): Promise<boolean> {
+    try {
+        outputChannel.appendLine('Upgrading genvm-linter...');
+        outputChannel.show();
+
+        // Try pipx first
+        try {
+            const { stdout, stderr } = await execAsync('pipx upgrade genvm-linter');
+            outputChannel.appendLine(stdout);
+            if (stderr) outputChannel.appendLine(stderr);
+            return true;
+        } catch {
+            // Fall back to pip
+            const { stdout, stderr } = await execAsync('python3 -m pip install --user --upgrade genvm-linter');
+            outputChannel.appendLine(stdout);
+            if (stderr) outputChannel.appendLine(stderr);
+            return true;
+        }
+    } catch (error: any) {
+        outputChannel.appendLine(`Upgrade failed: ${error.message}`);
+        return false;
+    }
+}
+
 async function checkAndInstallDependencies(outputChannel: vscode.OutputChannel): Promise<void> {
     try {
-        // Check if genvm-linter is available (try running it)
-        let genvmInstalled = false;
+        const installedVersion = await getInstalledLinterVersion(outputChannel);
 
-        try {
-            await execAsync('genvm-lint --version');
-            genvmInstalled = true;
-        } catch (error) {
-            // CLI not found, try as Python module
-            try {
-                await execAsync('python3 -m genvm_linter.cli --version');
-                genvmInstalled = true;
-            } catch (e) {
-                // Not installed
+        if (!installedVersion) {
+            // Not installed - prompt to install
+            const response = await vscode.window.showInformationMessage(
+                'GenLayer extension requires genvm-linter. Install now?',
+                'Install',
+                'Later',
+                'Don\'t Ask Again'
+            );
+
+            if (response === 'Install') {
+                await installPackages(outputChannel, ['genvm-linter']);
+            } else if (response === 'Don\'t Ask Again') {
+                await vscode.workspace.getConfiguration('genlayer').update('autoInstallDependencies', false, true);
             }
-        }
-
-        if (genvmInstalled) {
-            outputChannel.appendLine('genvm-linter is installed');
             return;
         }
 
-        const response = await vscode.window.showInformationMessage(
-            'GenLayer extension requires genvm-linter. Install now?',
-            'Install',
-            'Later',
-            'Don\'t Ask Again'
-        );
+        outputChannel.appendLine(`genvm-linter ${installedVersion} is installed`);
 
-        if (response === 'Install') {
-            await installPackages(outputChannel, ['genvm-linter']);
-        } else if (response === 'Don\'t Ask Again') {
-            await vscode.workspace.getConfiguration('genlayer').update('autoInstallDependencies', false, true);
+        // Check for updates
+        const latestVersion = await getLatestLinterVersion(outputChannel);
+        if (latestVersion && compareVersions(latestVersion, installedVersion) > 0) {
+            outputChannel.appendLine(`New version available: ${latestVersion}`);
+
+            const response = await vscode.window.showInformationMessage(
+                `genvm-linter ${latestVersion} available (you have ${installedVersion}). Upgrade?`,
+                'Upgrade',
+                'Later',
+                'Don\'t Ask Again'
+            );
+
+            if (response === 'Upgrade') {
+                const success = await upgradeLinter(outputChannel);
+                if (success) {
+                    vscode.window.showInformationMessage(`genvm-linter upgraded to ${latestVersion}`);
+                }
+            } else if (response === 'Don\'t Ask Again') {
+                await vscode.workspace.getConfiguration('genlayer').update('autoInstallDependencies', false, true);
+            }
         }
     } catch (error) {
         outputChannel.appendLine(`Error checking dependencies: ${error}`);
@@ -1082,21 +1277,27 @@ async function installPackages(outputChannel: vscode.OutputChannel, packages?: s
     });
 }
 
-async function setupSdkAndConfigurePylance(outputChannel: vscode.OutputChannel, showProgress = false): Promise<void> {
+async function setupSdkAndConfigurePylance(outputChannel: vscode.OutputChannel, showProgress = false, contractPath?: string): Promise<void> {
     const doSetup = async () => {
         try {
             outputChannel.appendLine('Setting up GenLayer SDK for intellisense...');
+            if (contractPath) {
+                outputChannel.appendLine(`Contract: ${contractPath}`);
+            }
 
             // Try genvm-lint setup --json command (v0.4.0+)
             let result: { ok: boolean; extraPaths?: string[]; version?: string; error?: string } | null = null;
 
+            // Build command with optional contract path
+            const contractArg = contractPath ? ` --contract "${contractPath}"` : '';
+
             try {
-                const { stdout } = await execAsync('genvm-lint setup --json');
+                const { stdout } = await execAsync(`genvm-lint setup --json${contractArg}`);
                 result = JSON.parse(stdout.trim());
             } catch (cliError: any) {
                 // CLI not found, try as Python module
                 try {
-                    const { stdout } = await execAsync('python3 -m genvm_linter.cli setup --json');
+                    const { stdout } = await execAsync(`python3 -m genvm_linter.cli setup --json${contractArg}`);
                     result = JSON.parse(stdout.trim());
                 } catch {
                     // Fall back to old stubs command for older genvm-linter versions
@@ -1160,26 +1361,46 @@ async function legacyGenerateStubs(outputChannel: vscode.OutputChannel): Promise
 
 async function configurePylanceExtraPaths(extraPaths: string[], outputChannel: vscode.OutputChannel): Promise<void> {
     try {
+        // Check if we have a workspace folder
+        const hasWorkspace = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0;
+        const target = hasWorkspace ? vscode.ConfigurationTarget.Workspace : vscode.ConfigurationTarget.Global;
+        const targetName = hasWorkspace ? 'workspace' : 'global';
+
         const config = vscode.workspace.getConfiguration('python.analysis');
+        const sdkPathPattern = /genvm-linter/;
+
+        // Clean up old SDK paths from global settings when using workspace
+        if (hasWorkspace) {
+            const inspected = config.inspect<string[]>('extraPaths');
+            const globalPaths = inspected?.globalValue || [];
+            const cleanedGlobal = globalPaths.filter(p => !sdkPathPattern.test(p));
+            if (cleanedGlobal.length !== globalPaths.length) {
+                await config.update('extraPaths', cleanedGlobal.length > 0 ? cleanedGlobal : undefined, vscode.ConfigurationTarget.Global);
+                outputChannel.appendLine(`Cleaned ${globalPaths.length - cleanedGlobal.length} old SDK paths from global settings`);
+            }
+        }
+
         const currentExtraPaths = config.get<string[]>('extraPaths') || [];
 
-        // Merge new paths with existing, avoiding duplicates
-        const mergedPaths = [...new Set([...currentExtraPaths, ...extraPaths])];
+        // Replace SDK paths (paths containing genvm-linter cache) with new ones
+        const nonSdkPaths = currentExtraPaths.filter(p => !sdkPathPattern.test(p));
+        const mergedPaths = [...nonSdkPaths, ...extraPaths];
 
         // Check if update is needed
-        const needsUpdate = extraPaths.some(p => !currentExtraPaths.includes(p));
+        const currentSdkPaths = currentExtraPaths.filter(p => sdkPathPattern.test(p));
+        const needsUpdate = JSON.stringify(currentSdkPaths.sort()) !== JSON.stringify(extraPaths.sort());
 
         if (needsUpdate) {
-            await config.update('extraPaths', mergedPaths, vscode.ConfigurationTarget.Global);
-            outputChannel.appendLine(`Configured Pylance extraPaths with ${extraPaths.length} SDK paths`);
+            await config.update('extraPaths', mergedPaths, target);
+            outputChannel.appendLine(`Configured Pylance extraPaths (${targetName}) with ${extraPaths.length} SDK paths`);
         } else {
             outputChannel.appendLine('Pylance extraPaths already configured');
         }
 
-        // Suppress "missing module source" warnings
+        // Suppress "missing module source" warnings (workspace level if available)
         const currentReportMissing = config.get<string>('reportMissingModuleSource');
         if (currentReportMissing !== 'none') {
-            await config.update('reportMissingModuleSource', 'none', vscode.ConfigurationTarget.Global);
+            await config.update('reportMissingModuleSource', 'none', target);
             outputChannel.appendLine('Suppressed reportMissingModuleSource warnings');
         }
 
