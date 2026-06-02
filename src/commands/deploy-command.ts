@@ -1,10 +1,58 @@
 import * as vscode from 'vscode';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { executeInteractiveCommand } from '../helpers/interactive-process';
-import { getPythonPath, getWorkspaceRoot } from '../helpers/helpers';
+import { getWorkspaceRoot } from '../helpers/helpers';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
+
+type FeeEstimate = {
+    distribution?: Record<string, unknown>;
+    messageAllocations?: unknown[];
+    message_allocations?: unknown[];
+    feeValue?: string | number | bigint;
+    fee_value?: string | number | bigint;
+};
+
+function feePresetFromEstimate(estimate: FeeEstimate): string {
+    if (!estimate.distribution) {
+        throw new Error('genlayer estimate-fees --json did not return a fee distribution');
+    }
+    const feeValue = estimate.feeValue ?? estimate.fee_value;
+    const messageAllocations = estimate.messageAllocations ?? estimate.message_allocations;
+    const preset: Record<string, unknown> = {
+        distribution: estimate.distribution,
+    };
+    if (messageAllocations) {
+        preset.messageAllocations = messageAllocations;
+    }
+    if (feeValue !== undefined) {
+        preset.feeValue = String(feeValue);
+    }
+    return JSON.stringify(preset);
+}
+
+async function estimateDeployFees(rpcUrl: string | undefined, outputChannel: vscode.OutputChannel): Promise<string> {
+    const args = ['estimate-fees', '--json'];
+    if (rpcUrl) {
+        args.push('--rpc', rpcUrl);
+    }
+
+    outputChannel.appendLine(`Estimating deployment fees: genlayer ${args.join(' ')}`);
+    const { stdout } = await execFileAsync('genlayer', args, {
+        cwd: getWorkspaceRoot(),
+        timeout: 120000,
+    });
+    const lines = stdout
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean);
+    const rawJson = lines[lines.length - 1];
+    if (!rawJson) {
+        throw new Error('genlayer estimate-fees --json returned no output');
+    }
+    return feePresetFromEstimate(JSON.parse(rawJson) as FeeEstimate);
+}
 
 /**
  * Deploy a GenLayer intelligent contract
@@ -18,7 +66,8 @@ export async function deployContract(document: vscode.TextDocument, outputChanne
         const networks = [
             { label: '🌐 StudioNet', value: 'studionet', description: 'GenLayer Studio Network' },
             { label: '🏠 LocalNet', value: 'localnet', description: 'Local Development Network' },
-            { label: '🧪 TestNet', value: 'testnet', description: 'Test Network' },
+            { label: '🧪 TestNet Bradbury', value: 'testnet-bradbury', description: 'Bradbury Test Network' },
+            { label: '🧪 TestNet Asimov', value: 'testnet-asimov', description: 'Asimov Test Network' },
             { label: '⚙️ Custom RPC...', value: 'custom', description: 'Custom RPC Endpoint' }
         ];
 
@@ -39,12 +88,11 @@ export async function deployContract(document: vscode.TextDocument, outputChanne
         outputChannel.appendLine(`Contract: ${contractPath}`);
         outputChannel.appendLine(`Network: ${selected.label}`);
 
-        const pythonPath = getPythonPath();
-        let deployCommand: string;
+        let rpcUrl: string | undefined;
 
         if (selected.value === 'custom') {
             // Prompt for custom RPC URL
-            const rpcUrl = await vscode.window.showInputBox({
+            rpcUrl = await vscode.window.showInputBox({
                 prompt: 'Enter custom RPC URL',
                 placeHolder: 'http://localhost:8545',
                 ignoreFocusOut: true,  // Don't close when focus is lost
@@ -67,12 +115,18 @@ export async function deployContract(document: vscode.TextDocument, outputChanne
             }
 
             outputChannel.appendLine(`Custom RPC: ${rpcUrl}`);
-            deployCommand = `genlayer deploy --contract "${contractPath}" --rpc ${rpcUrl}`;
         } else {
             // For standard networks, set network first then deploy
             outputChannel.appendLine(`\nSetting network to ${selected.label}...`);
             try {
-                const { stdout: networkOut, stderr: networkErr } = await execAsync(`genlayer network ${selected.value}`);
+                const { stdout: networkOut, stderr: networkErr } = await execFileAsync(
+                    'genlayer',
+                    ['network', 'set', selected.value],
+                    {
+                        cwd: getWorkspaceRoot(),
+                        timeout: 30000,
+                    }
+                );
 
                 // Display network command output (both stdout and stderr may contain success messages)
                 const networkOutput = networkOut || networkErr || '';
@@ -90,8 +144,6 @@ export async function deployContract(document: vscode.TextDocument, outputChanne
                 vscode.window.showErrorMessage(`Failed to set network: ${error.message}`);
                 return;
             }
-
-            deployCommand = `genlayer deploy --contract "${contractPath}"`;
         }
 
         // Execute deployment with interactive support
@@ -102,15 +154,12 @@ export async function deployContract(document: vscode.TextDocument, outputChanne
         }, async (progress) => {
             progress.report({ increment: 0, message: "Initiating deployment..." });
 
-            // Parse the deploy command to extract arguments
-            let deployArgs: string[];
-            if (selected.value === 'custom' && deployCommand.includes('--rpc')) {
-                // For custom RPC: genlayer deploy --contract "path" --rpc url
-                const rpcUrl = deployCommand.match(/--rpc\s+(\S+)/)?.[1] || '';
-                deployArgs = ['deploy', '--contract', contractPath, '--rpc', rpcUrl];
-            } else {
-                // For standard networks: genlayer deploy --contract "path"
-                deployArgs = ['deploy', '--contract', contractPath];
+            const feePreset = await estimateDeployFees(rpcUrl, outputChannel);
+            outputChannel.appendLine(`Fee preset: ${feePreset}`);
+
+            const deployArgs = ['deploy', '--contract', contractPath, '--fees', feePreset];
+            if (rpcUrl) {
+                deployArgs.push('--rpc', rpcUrl);
             }
 
             progress.report({ increment: 30, message: "Preparing deployment..." });
