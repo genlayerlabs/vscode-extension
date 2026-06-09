@@ -7,6 +7,8 @@ import { GenVMCodeActionProvider } from './code-actions-provider';
 import { GenVMInlayHintsProvider } from './inlay-hints-provider';
 import { GenVMDefinitionProvider } from './definition-provider';
 import { GenVMHoverProvider } from './hover-provider';
+import { deployContract as deployContractCommandHandler } from './commands/deploy-command';
+import { extractContractAddress as extractContractAddressFromOutput } from './helpers/contract-address';
 import { exec, spawn, ChildProcess, execFile } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs';
@@ -324,7 +326,7 @@ export async function activate(context: vscode.ExtensionContext) {
             }
 
             outputChannel.appendLine('Calling deployContract function...');
-            await deployContract(editor.document, outputChannel);
+            await deployContractCommandHandler(editor.document, outputChannel);
         } catch (error: any) {
             outputChannel.appendLine(`Error in deploy command: ${error.message}`);
             vscode.window.showErrorMessage(`Deploy error: ${error.message}`);
@@ -794,8 +796,8 @@ async function executeInteractiveCommand(
             const text = data.toString();
             output += text;
 
-            // Check if deployment is successful (contract address appeared)
-            if (!deploymentSuccessful && text.match(/0x[a-fA-F0-9]{40}/)) {
+            // Check if deployment produced a contract address.
+            if (!deploymentSuccessful && extractContractAddressFromOutput(text)) {
                 deploymentSuccessful = true;
                 // Clear any pending password prompt timeout since deployment succeeded
                 if (passwordPromptTimeout) {
@@ -899,7 +901,7 @@ async function executeInteractiveCommand(
                     options.onProgress('Waiting for confirmation...');
                 } else if (lowerText.includes('success') || lowerText.includes('deployed')) {
                     options.onProgress('Deployment successful!');
-                } else if (lowerText.includes('contract address') || text.match(/0x[a-fA-F0-9]{40}/)) {
+                } else if (lowerText.includes('contract address') || extractContractAddressFromOutput(text)) {
                     options.onProgress('Contract deployed successfully!');
                 }
             }
@@ -910,8 +912,8 @@ async function executeInteractiveCommand(
             const text = data.toString();
             output += text;
 
-            // Check if deployment is successful (contract address might appear in stderr too)
-            if (!deploymentSuccessful && text.match(/0x[a-fA-F0-9]{40}/)) {
+            // Check if deployment produced a contract address.
+            if (!deploymentSuccessful && extractContractAddressFromOutput(text)) {
                 deploymentSuccessful = true;
                 // Clear any pending password prompt timeout since deployment succeeded
                 if (passwordPromptTimeout) {
@@ -1019,12 +1021,9 @@ async function executeInteractiveCommand(
 
                 outputChannel.appendLine(`\nProcess exited with code ${code}`);
 
-                // Extract contract address if present
-                const addressMatch = output.match(/0x[a-fA-F0-9]{40}/);
-                const contractAddress = addressMatch ? addressMatch[0] : undefined;
+                const contractAddress = extractContractAddressFromOutput(output);
 
-                // Deployment is only successful if we have a contract address
-                const success = !!contractAddress;
+                const success = code === 0;
 
                 resolve({
                     success,

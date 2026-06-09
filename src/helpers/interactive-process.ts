@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { spawn, ChildProcess } from 'child_process';
+import { extractContractAddress } from './contract-address';
 
 /**
  * Handle password prompts from the process
@@ -165,8 +166,8 @@ export async function executeInteractiveCommand(
             const text = data.toString();
             output += text;
 
-            // Check if deployment is successful (contract address appeared)
-            if (!deploymentSuccessful && text.match(/0x[a-fA-F0-9]{40}/)) {
+            // Check if deployment produced a contract address.
+            if (!deploymentSuccessful && extractContractAddress(text)) {
                 deploymentSuccessful = true;
                 // Clear any pending password prompt timeout since deployment succeeded
                 if (passwordPromptTimeout) {
@@ -270,7 +271,7 @@ export async function executeInteractiveCommand(
                     options.onProgress('Waiting for confirmation...');
                 } else if (lowerText.includes('success') || lowerText.includes('deployed')) {
                     options.onProgress('Deployment successful!');
-                } else if (lowerText.includes('contract address') || text.match(/0x[a-fA-F0-9]{40}/)) {
+                } else if (lowerText.includes('contract address') || extractContractAddress(text)) {
                     options.onProgress('Contract deployed successfully!');
                 }
             }
@@ -281,8 +282,8 @@ export async function executeInteractiveCommand(
             const text = data.toString();
             output += text;
 
-            // Check if deployment is successful (contract address might appear in stderr too)
-            if (!deploymentSuccessful && text.match(/0x[a-fA-F0-9]{40}/)) {
+            // Check if deployment produced a contract address.
+            if (!deploymentSuccessful && extractContractAddress(text)) {
                 deploymentSuccessful = true;
                 // Clear any pending password prompt timeout since deployment succeeded
                 if (passwordPromptTimeout) {
@@ -390,14 +391,9 @@ export async function executeInteractiveCommand(
 
                 outputChannel.appendLine(`\nProcess exited with code ${code}`);
 
-                // Extract contract address if present
-                const addressMatch = output.match(/0x[a-fA-F0-9]{40}/);
-                const contractAddress = addressMatch ? addressMatch[0] : undefined;
+                const contractAddress = extractContractAddress(output);
 
-                const success = code === 0 ||
-                               output.toLowerCase().includes('success') ||
-                               output.toLowerCase().includes('deployed') ||
-                               !!contractAddress;
+                const success = code === 0;
 
                 resolve({
                     success,

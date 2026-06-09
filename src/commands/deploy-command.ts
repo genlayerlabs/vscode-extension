@@ -14,6 +14,9 @@ type FeeEstimate = {
     fee_value?: string | number | bigint;
 };
 
+let supportsFeeEstimationPromise: Promise<boolean> | undefined;
+let shownFeeEstimationNotice = false;
+
 function feePresetFromEstimate(estimate: FeeEstimate): string {
     if (!estimate.distribution) {
         throw new Error('genlayer estimate-fees --json did not return a fee distribution');
@@ -30,6 +33,54 @@ function feePresetFromEstimate(estimate: FeeEstimate): string {
         preset.feeValue = String(feeValue);
     }
     return JSON.stringify(preset);
+}
+
+function formatGenFromWei(weiValue: string | number | bigint): string {
+    const wei = BigInt(String(weiValue));
+    const weiPerGen = BigInt('1000000000000000000');
+    const whole = wei / weiPerGen;
+    const fraction = wei % weiPerGen;
+
+    if (fraction === BigInt(0)) {
+        return whole.toString();
+    }
+
+    const fractionText = fraction.toString().padStart(18, '0');
+    const firstSixDecimals = fractionText.slice(0, 6);
+    const trimmedDecimals = firstSixDecimals.replace(/0+$/, '');
+
+    if (!trimmedDecimals) {
+        return wei > BigInt(0) ? '<0.000001' : '0';
+    }
+
+    return `${whole.toString()}.${trimmedDecimals}`;
+}
+
+async function supportsFeeEstimation(outputChannel: vscode.OutputChannel): Promise<boolean> {
+    if (!supportsFeeEstimationPromise) {
+        supportsFeeEstimationPromise = execFileAsync('genlayer', ['estimate-fees', '--help'], {
+            cwd: getWorkspaceRoot(),
+            timeout: 30000,
+        })
+            .then(() => true)
+            .catch((error: any) => {
+                outputChannel.appendLine(`Fee estimation unavailable: ${error.message}`);
+                return false;
+            });
+    }
+
+    return supportsFeeEstimationPromise;
+}
+
+function showFeeEstimationUnavailableNotice(outputChannel: vscode.OutputChannel): void {
+    if (shownFeeEstimationNotice) {
+        return;
+    }
+
+    shownFeeEstimationNotice = true;
+    const message = 'Fee estimation requires genlayer CLI ≥ 0.40 — deploying without explicit fees.';
+    outputChannel.appendLine(message);
+    vscode.window.showInformationMessage(message);
 }
 
 async function estimateDeployFees(rpcUrl: string | undefined, outputChannel: vscode.OutputChannel): Promise<string> {
@@ -51,7 +102,12 @@ async function estimateDeployFees(rpcUrl: string | undefined, outputChannel: vsc
     if (!rawJson) {
         throw new Error('genlayer estimate-fees --json returned no output');
     }
-    return feePresetFromEstimate(JSON.parse(rawJson) as FeeEstimate);
+    const estimate = JSON.parse(rawJson) as FeeEstimate;
+    const feeValue = estimate.feeValue ?? estimate.fee_value;
+    if (feeValue !== undefined) {
+        outputChannel.appendLine(`Estimated fee deposit: ${String(feeValue)} wei (~${formatGenFromWei(feeValue)} GEN)`);
+    }
+    return feePresetFromEstimate(estimate);
 }
 
 /**
@@ -154,10 +210,15 @@ export async function deployContract(document: vscode.TextDocument, outputChanne
         }, async (progress) => {
             progress.report({ increment: 0, message: "Initiating deployment..." });
 
-            const feePreset = await estimateDeployFees(rpcUrl, outputChannel);
-            outputChannel.appendLine(`Fee preset: ${feePreset}`);
+            const deployArgs = ['deploy', '--contract', contractPath];
 
-            const deployArgs = ['deploy', '--contract', contractPath, '--fees', feePreset];
+            if (await supportsFeeEstimation(outputChannel)) {
+                const feePreset = await estimateDeployFees(rpcUrl, outputChannel);
+                deployArgs.push('--fees', feePreset);
+            } else {
+                showFeeEstimationUnavailableNotice(outputChannel);
+            }
+
             if (rpcUrl) {
                 deployArgs.push('--rpc', rpcUrl);
             }
