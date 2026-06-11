@@ -2,6 +2,11 @@
 
 Official VS Code extension for developing GenLayer intelligent contracts with Python, featuring real-time linting, code intelligence, and deployment tools.
 
+## Branching
+
+See [docs/BRANCHING.md](docs/BRANCHING.md) for the release-train model used by
+this repo.
+
 ## Features
 
 ### 🔍 Real-time Linting
