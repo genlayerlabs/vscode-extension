@@ -46,10 +46,19 @@ Module._load = function(request, parent, isMain) {
 };
 
 const { GenVMDiagnosticsProvider } = require('../out/diagnostics-provider');
-const { GenVMLinter } = require('../out/genvm-linter');
+const { GenVMLinter, resolveLintSeverity } = require('../out/genvm-linter');
 Module._load = originalLoad;
 
 const outputChannel = { appendLine() {} };
+
+test('modern linter severity keeps GL-S03 visible in error-only mode', () => {
+    assert.equal(resolveLintSeverity({ code: 'GL-S03' }), 'error');
+    assert.equal(
+        resolveLintSeverity({ code: 'GL-W01', severity: 'error' }),
+        'error'
+    );
+    assert.equal(resolveLintSeverity({ code: 'GL-W01' }), 'warning');
+});
 
 test('workspace lint recognizes the documented multiline Seq dependency header', () => {
     const lines = [

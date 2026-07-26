@@ -32,6 +32,26 @@ export interface GenVMLintOutput {
     };
 }
 
+export function resolveLintSeverity(
+    warning: { code?: string; severity?: string }
+): GenVMLintResult['severity'] {
+    const explicitSeverity = warning.severity?.toLowerCase();
+    if (
+        explicitSeverity === 'error' ||
+        explicitSeverity === 'warning' ||
+        explicitSeverity === 'info'
+    ) {
+        return explicitSeverity;
+    }
+
+    // GL-S03 is a security rule that the linter classifies as an error.
+    // Older linter JSON did not include a severity field, so retain the
+    // legacy code fallback for that output format.
+    return warning.code?.startsWith('E') || warning.code === 'GL-S03'
+        ? 'error'
+        : 'warning';
+}
+
 /**
  * Resolve the path to genvm-lint executable.
  */
@@ -199,7 +219,7 @@ export class GenVMLinter {
                             results = output.warnings.map((w: any) => ({
                                 rule_id: w.code || 'unknown',
                                 message: w.msg || w.message || '',
-                                severity: w.code?.startsWith('E') ? 'error' : 'warning',
+                                severity: resolveLintSeverity(w),
                                 line: w.line || 1,
                                 column: w.col || w.column || 0,
                                 suggestion: w.suggestion
