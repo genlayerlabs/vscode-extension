@@ -122,18 +122,18 @@ export class GenVMLinter {
             return [];
         }
 
+        let tempPath: string | undefined;
         try {
             // Save document content to temporary file for linting
-            const tempPath = this.createTempFile(document);
-            const results = await this.runLinter(tempPath);
-            
-            // Clean up temp file
-            this.cleanupTempFile(tempPath);
-            
-            return results;
+            tempPath = this.createTempFile(document);
+            return await this.runLinter(tempPath);
         } catch (error) {
             this.outputChannel.appendLine(`GenLayer Error: ${error}`);
             return [];
+        } finally {
+            if (tempPath) {
+                this.cleanupTempFile(tempPath);
+            }
         }
     }
 

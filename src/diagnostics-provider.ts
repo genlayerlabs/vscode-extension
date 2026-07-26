@@ -122,10 +122,17 @@ export class GenVMDiagnosticsProvider implements vscode.Disposable {
     }
 
     private isGenVMFile(document: vscode.TextDocument): boolean {
-        // Check if file contains GenVM magic comment
+        // Dependency headers may span several leading comment lines.
         if (document.lineCount > 0) {
-            const firstLine = document.lineAt(0).text.trim();
-            return /^#\s*\{\s*"Depends"\s*:\s*"py-genlayer:/.test(firstLine);
+            const headerLines: string[] = [];
+            for (let lineIndex = 0; lineIndex < document.lineCount; lineIndex++) {
+                const line = document.lineAt(lineIndex).text.trim();
+                if (!line.startsWith('#')) {
+                    break;
+                }
+                headerLines.push(line.slice(1));
+            }
+            return /"Depends"\s*:\s*"py-genlayer:/.test(headerLines.join(' '));
         }
         
         // Also check filename patterns that might indicate GenVM contracts
