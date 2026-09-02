@@ -12,6 +12,7 @@ import { promisify } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import * as https from 'https';
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
@@ -540,20 +541,40 @@ async function getInstalledLinterVersion(outputChannel: vscode.OutputChannel): P
 }
 
 async function getLatestLinterVersion(outputChannel: vscode.OutputChannel): Promise<string | null> {
-    try {
-        // Use pip index versions or PyPI JSON API
-        const { stdout } = await execAsync('pip index versions genvm-linter 2>/dev/null || python3 -m pip index versions genvm-linter 2>/dev/null');
-        const match = stdout.match(/LATEST:\s*(\d+\.\d+\.\d+)/);
-        return match ? match[1] : null;
-    } catch {
-        // Fallback: query PyPI JSON API
-        try {
-            const { stdout } = await execAsync('curl -s https://pypi.org/pypi/genvm-linter/json | python3 -c "import sys,json; print(json.load(sys.stdin)[\'info\'][\'version\'])"');
-            return stdout.trim() || null;
-        } catch {
-            return null;
-        }
-    }
+    return new Promise((resolve) => {
+        const request = https.get(
+            'https://pypi.org/pypi/genvm-linter/json',
+            { headers: { 'User-Agent': 'genlayer-vscode-extension' } },
+            (response) => {
+                if (response.statusCode !== 200) {
+                    response.resume();
+                    outputChannel.appendLine(`Unable to check the latest linter version: PyPI returned ${response.statusCode}.`);
+                    resolve(null);
+                    return;
+                }
+
+                let body = '';
+                response.setEncoding('utf8');
+                response.on('data', (chunk: string) => body += chunk);
+                response.on('end', () => {
+                    try {
+                        const payload = JSON.parse(body) as { info?: { version?: unknown } };
+                        const version = payload.info?.version;
+                        resolve(typeof version === 'string' ? version : null);
+                    } catch {
+                        outputChannel.appendLine('Unable to check the latest linter version: PyPI returned invalid JSON.');
+                        resolve(null);
+                    }
+                });
+            }
+        );
+
+        request.setTimeout(5000, () => request.destroy(new Error('PyPI request timed out.')));
+        request.on('error', (error) => {
+            outputChannel.appendLine(`Unable to check the latest linter version: ${error.message}`);
+            resolve(null);
+        });
+    });
 }
 
 function compareVersions(v1: string, v2: string): number {
